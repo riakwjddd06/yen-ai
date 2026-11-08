@@ -1,0 +1,16 @@
+# 가상환경, 캐시
+venv/
+__pycache__/
+*.pyc
+
+# 비밀 정보
+.env
+serviceAccount*.json
+*firebase-adminsdk*.json
+
+# 프론트 빌드 결과(배포 때 자동 생성)
+frontend/config.js
+
+# OS 파일
+.DS_Store
+.vscode/
