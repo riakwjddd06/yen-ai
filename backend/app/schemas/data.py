@@ -1,0 +1,113 @@
+"""Data API의 요청·응답 모양과 검증 규칙(Pydantic)."""
+from datetime import date as Date
+from typing import Optional
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+VALUE_RULE = dict(gt=300, lt=3000, description="100엔당 원화 매매기준율 (300 초과 3000 미만)")
+
+
+# ── 요청 ───────────────────────────────────────────
+class DataCreate(BaseModel):
+    date: Date = Field(..., description="날짜 (YYYY-MM-DD)", examples=["2026-11-09"])
+    value: float = Field(..., examples=[852.31], **VALUE_RULE)
+    memo: str = Field("", max_length=200, description="메모 (최대 200자)", examples=["여행 경비 환전함"])
+
+    @field_validator("date")
+    @classmethod
+    def not_in_future(cls, v: Date) -> Date:
+        if v > Date.today():
+            raise ValueError("미래 날짜는 넣을 수 없습니다.")
+        return v
+
+    @field_validator("memo")
+    @classmethod
+    def strip_memo(cls, v: str) -> str:
+        return v.strip()
+
+
+class DataUpdate(BaseModel):
+    """날짜는 문서 ID라서 바꿀 수 없다. 날짜를 바꾸려면 삭제 후 다시 추가한다."""
+    value: Optional[float] = Field(None, examples=[855.0], **VALUE_RULE)
+    memo: Optional[str] = Field(None, max_length=200, examples=["수정한 메모"])
+
+    @model_validator(mode="after")
+    def at_least_one(self):
+        if self.value is None and self.memo is None:
+            raise ValueError("value와 memo 중 하나 이상을 보내야 합니다.")
+        if self.memo is not None:
+            self.memo = self.memo.strip()
+        return self
+
+
+# ── 응답 ───────────────────────────────────────────
+class DataOut(BaseModel):
+    id: str = Field(..., examples=["2026-11-06"])
+    date: str = Field(..., examples=["2026-11-06"])
+    value: float = Field(..., examples=[852.31])
+    memo: str = Field("", examples=[""])
+
+
+class DataList(BaseModel):
+    items: list[DataOut]
+    total: int = Field(..., description="조건에 맞는 전체 건수")
+    next_cursor: Optional[str] = Field(None, description="다음 페이지를 받을 때 cursor로 보낼 값. 없으면 마지막 페이지")
+
+
+class DatedValue(BaseModel):
+    date: str
+    value: float
+
+
+class Metrics(BaseModel):
+    latest: DatedValue
+    average: float
+    max: DatedValue
+    min: DatedValue
+    avg_1y: float
+    change_1m_pct: float
+    change_1y_pct: float
+
+
+class Position(BaseModel):
+    percentile_1y: float = Field(..., description="최근 1년 중 현재 값보다 낮았던 날의 비율(%). 낮을수록 엔화가 싼 편")
+    percentile_5y: float
+    label: str
+
+
+class VolatilePeriodOut(BaseModel):
+    type: str
+    start: str
+    end: str
+    change_pct: float
+    main_factor: str
+    main_share_pct: float
+    krw_factor_pct: float
+    jpy_factor_pct: float
+    reasons: list[str] = []
+
+
+class MonthlyTravel(BaseModel):
+    month: int
+    crowd: int
+    score: int
+    note: str
+
+
+class Travel(BaseModel):
+    rate_score: int = Field(..., description="지금 환전하기 좋은 정도 0~100 (100 - 1년 백분위)")
+    rate_label: str
+    monthly: list[MonthlyTravel] = Field(..., description="여행 월별 종합 점수 = 환율 70% + 시즌 30%")
+    note: str
+
+
+class SummaryOut(BaseModel):
+    period: str
+    count: int
+    unit: str = "원/100엔"
+    metrics: Metrics
+    trend: str
+    position: Position
+    volatile_periods: list[VolatilePeriodOut]
+    travel: Travel
+    computed_at: str

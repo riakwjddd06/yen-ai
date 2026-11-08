@@ -106,6 +106,8 @@ def main() -> None:
     clear_collection(db, "volatile_periods")
     write_in_batches(db, "volatile_periods", period_docs)
 
+    db.collection("meta").document("summary").delete()  # 데이터가 바뀌었으니 요약 캐시를 지운다
+
     count = db.collection("data").count().get()[0][0].value
     sample = db.collection("data").document(data_docs[-1][0]).get().to_dict()
     print(f"\n완료: data 컬렉션 {count}건")
