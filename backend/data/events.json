@@ -1,0 +1,209 @@
+[
+  {
+    "start_date": "2015-07-28",
+    "end_date": "2015-09-09",
+    "title": "중국 위안화 기습 절하로 원화 약세",
+    "category": "시장",
+    "direction": "상승",
+    "description": "8월 11일 중국 인민은행이 위안화를 기습 절하했다. 원/달러는 1,179.1원으로 15.9원 올라 2012년 6월 이후 최고치로 마감했고, 위안화와 함께 움직이는 원화에 약세 압력이 커졌다.",
+    "source_url": "https://m.seoul.co.kr/news/2015/08/11/20150811800166"
+  },
+  {
+    "start_date": "2015-10-01",
+    "end_date": "2015-10-29",
+    "title": "미국 10월 금리인상 기대 후퇴로 원화 반등",
+    "category": "FED",
+    "direction": "하락",
+    "description": "미국 9월 고용지표가 예상을 크게 밑돌며 10월 금리인상 가능성이 사실상 사라졌다. 달러 강세가 누그러지고 위안화 약세도 진정되면서 그동안 약했던 원화가 강해졌다.",
+    "source_url": "https://news.bizwatch.co.kr/article/market/2015/10/05/0002"
+  },
+  {
+    "start_date": "2015-12-08",
+    "end_date": "2016-03-25",
+    "title": "글로벌 금융시장 불안과 마이너스 금리 역효과로 엔화 강세",
+    "category": "시장",
+    "direction": "상승",
+    "description": "일본은행이 엔화 약세를 노리고 마이너스 금리를 도입했지만 엔화는 오히려 급등했다. 세계 증시가 고점 대비 20% 넘게 떨어지는 등 금융시장 불안이 커지며 안전자산 엔화로 돈이 몰렸다.",
+    "source_url": "https://m.seoul.co.kr/news/2016/02/12/20160212800074"
+  },
+  {
+    "start_date": "2016-06-24",
+    "end_date": "2016-06-27",
+    "title": "브렉시트 국민투표 충격",
+    "category": "지정학",
+    "direction": "상승",
+    "description": "영국의 EU 탈퇴가 결정되자 안전자산 엔화가 한때 달러당 100엔 아래로 급등했다. 같은 날 원/달러는 장중 30원 넘게 오르며 원화가 크게 약해졌다.",
+    "source_url": "https://m.seoul.co.kr/news/2016/06/24/20160624800115"
+  },
+  {
+    "start_date": "2016-11-04",
+    "end_date": "2016-12-16",
+    "title": "트럼프 당선 후 미국 금리 상승으로 엔화 약세",
+    "category": "시장",
+    "direction": "하락",
+    "description": "트럼프 당선 뒤 재정지출 확대 기대로 미국 국채금리가 오르며 미·일 금리차가 2014년 이후 최대로 벌어졌다. 엔화는 안전자산으로 오를 것이란 예상과 달리 이틀 만에 3.5개월 최저(달러당 106.95엔)로 떨어졌다.",
+    "source_url": "https://gulf-times.com/story/520894/yen-bears-awaken-as-trump-win-hands-kuroda-unexpected-gift"
+  },
+  {
+    "start_date": "2018-01-10",
+    "end_date": "2018-02-19",
+    "title": "글로벌 증시 급락 후 엔화 15개월 최고",
+    "category": "시장",
+    "direction": "상승",
+    "description": "2월 초 증시 급락 뒤 안전자산 선호가 커지며 엔화가 달러당 107.15엔으로 2016년 11월 이후 가장 강해졌다. 시장은 일본 당국이 엔고를 어디까지 용인할지 시험했다.",
+    "source_url": "https://www.investing.com/news/forex-news/yen-climbs-to-15month-high-hitting-japan-stocks-markets-wrap-1242459"
+  },
+  {
+    "start_date": "2018-12-05",
+    "end_date": "2019-01-04",
+    "title": "연초 엔화 플래시 크래시",
+    "category": "시장",
+    "direction": "상승",
+    "description": "2019년 1월 3일 아시아 장 초반 엔화가 30초 만에 달러 대비 약 3% 급등했다. 연휴로 거래가 얇은 상황에서 엔 캐리 포지션 손절과 알고리즘 매매가 겹친 것으로 분석된다.",
+    "source_url": "https://www.rba.gov.au/publications/smp/2019/feb/box-b-the-recent-japanese-yen-flash-event.html"
+  },
+  {
+    "start_date": "2019-04-15",
+    "end_date": "2019-04-26",
+    "title": "1분기 역성장 쇼크로 원화 약세",
+    "category": "시장",
+    "direction": "상승",
+    "description": "한국 1분기 GDP가 예상 밖으로 감소해 금융위기 이후 최악의 분기를 기록했다. 원/달러는 1,161.4원까지 올라 2년여 만의 최고치를 기록했고, 원화는 그날 아시아에서 가장 약한 통화였다.",
+    "source_url": "https://www.thestar.com.my/business/business-news/2019/04/26/s-korea-gdp-shock-contraction-hits-won"
+  },
+  {
+    "start_date": "2019-05-01",
+    "end_date": "2019-05-27",
+    "title": "미·중 무역분쟁 재격화로 원/엔 1,080원대",
+    "category": "지정학",
+    "direction": "상승",
+    "description": "미·중 무역분쟁 우려로 위안화의 대리 통화인 원화가 약해졌다. 5월 13일 원/달러는 1,187.5원으로 2017년 1월 이후 최고였고, 원/엔은 1,082.15원으로 2016년 11월 이후 최고였다.",
+    "source_url": "https://www.etoday.co.kr/news/view/1755049"
+  },
+  {
+    "start_date": "2019-07-29",
+    "end_date": "2019-08-26",
+    "title": "일본 화이트리스트 배제와 위안화 7위안 돌파",
+    "category": "지정학",
+    "direction": "상승",
+    "description": "일본의 한국 화이트리스트 배제, 미·중 무역분쟁 재점화, 역외 위안화의 달러당 7위안 돌파가 겹쳤다. 8월 5일 원/달러는 1,215.3원으로 17.3원 올라 2017년 1월 이후 처음 1,200원을 넘었다.",
+    "source_url": "https://www.newsis.com/view/NISX20190805_0000732459"
+  },
+  {
+    "start_date": "2020-02-12",
+    "end_date": "2020-03-20",
+    "title": "코로나19 팬데믹 달러 부족으로 원화 급락",
+    "category": "시장",
+    "direction": "상승",
+    "description": "코로나19 확산으로 글로벌 달러 자금난이 심해지며 3월 19일 원/달러가 하루 40원 올라 1,285.7원에 마감했다. 같은 날 한·미가 600억 달러 통화스와프를 10년 만에 체결했다.",
+    "source_url": "https://www.newsis.com/view/NISX20200319_0000962921"
+  },
+  {
+    "start_date": "2020-11-09",
+    "end_date": "2020-11-10",
+    "title": "화이자 백신 효과 발표로 엔화 약세",
+    "category": "시장",
+    "direction": "하락",
+    "description": "화이자·바이오엔테크 백신 효과 발표로 위험자산 선호가 살아나면서 안전자산 엔화가 달러당 105엔대의 약세에 머물렀다.",
+    "source_url": "https://gulftoday.ae/business/2020/11/10/dollar-rise-after-coronavirus-vaccine-news"
+  },
+  {
+    "start_date": "2022-03-10",
+    "end_date": "2022-04-14",
+    "title": "일본은행 나홀로 완화로 엔화 급락",
+    "category": "BOJ",
+    "direction": "하락",
+    "description": "미국 등이 긴축에 나선 반면 일본은행은 금리 -0.1%와 장기금리 0% 목표를 유지했다. 미·일 금리차가 벌어지며 엔/달러는 3월 28일 124엔대로 2015년 8월 이후 최고를 기록했고, 엔화는 3월 한 달간 7.7% 떨어졌다.",
+    "source_url": "https://www.mt.co.kr/economy/2022/04/03/2022040117325220503"
+  },
+  {
+    "start_date": "2022-11-10",
+    "end_date": "2022-11-11",
+    "title": "미국 물가 둔화 발표로 달러 급락",
+    "category": "FED",
+    "direction": "상승",
+    "description": "미국 10월 소비자물가가 예상보다 낮게 나와 연준의 금리인상 속도 조절 기대가 커졌다. 11월 11일 원/달러는 하루 59.1원 떨어져 2008년 11월 이후 최대 하락폭을 기록했다.",
+    "source_url": "https://biz.sbs.co.kr/amp/article/20000088964"
+  },
+  {
+    "start_date": "2022-12-20",
+    "end_date": "2022-12-21",
+    "title": "일본은행 장기금리 변동폭 확대(사실상 금리인상)",
+    "category": "BOJ",
+    "direction": "상승",
+    "description": "일본은행이 10년물 국채금리 변동 허용폭을 ±0.25%에서 ±0.5%로 깜짝 확대했다. 사실상 금리인상으로 받아들여지며 엔화가 강해졌고, 원/달러도 엔화 강세 영향으로 13.3원 내렸다.",
+    "source_url": "https://www.fnnews.com/news/202212201809024387"
+  },
+  {
+    "start_date": "2023-05-08",
+    "end_date": "2023-06-21",
+    "title": "일본은행 완화 유지로 원/엔 8년 만에 800원대",
+    "category": "BOJ",
+    "direction": "하락",
+    "description": "일본은행이 6월 16일 금리 -0.1%와 완화 정책을 유지하자 엔화 약세가 이어졌다. 반도체 회복 기대로 원화는 강해져, 6월 19일 원/엔이 2015년 6월 이후 처음 800원대에 닿았다.",
+    "source_url": "https://www.etoday.co.kr/news/view/2258406"
+  },
+  {
+    "start_date": "2023-11-13",
+    "end_date": "2023-12-14",
+    "title": "우에다 총재 발언에 마이너스 금리 종료 기대",
+    "category": "BOJ",
+    "direction": "상승",
+    "description": "우에다 일본은행 총재가 연말부터 통화정책 운영이 더 어려워질 것이라고 말하자 마이너스 금리 종료 기대가 커졌다. 엔/달러는 150엔대에서 141엔대까지 떨어지며 엔화가 급등했다.",
+    "source_url": "https://www.asiae.co.kr/en/article/2023120810230807407"
+  },
+  {
+    "start_date": "2024-07-05",
+    "end_date": "2024-08-14",
+    "title": "일본은행 금리인상과 엔캐리 트레이드 청산",
+    "category": "BOJ",
+    "direction": "상승",
+    "description": "일본은행의 두 차례 금리인상과 미국 고용 부진에 따른 금리인하 기대로 미·일 금리차가 좁혀지며 엔 캐리 트레이드가 청산됐다. 엔/달러는 7월 초 161엔에서 8월 5일 142엔대로 떨어졌고, 그날 닛케이는 12% 넘게 폭락했다.",
+    "source_url": "https://kbthink.com/main/economy/market-analysis/Issue-analysis/2024/issue-analysis-240806.html"
+  },
+  {
+    "start_date": "2025-04-11",
+    "end_date": "2025-05-13",
+    "title": "대만달러 급등과 달러 약세로 원화 강세",
+    "category": "시장",
+    "direction": "하락",
+    "description": "관세 정책에 따른 미국 경기둔화 우려로 달러가 약해지고, 대만달러가 10% 가까이 급등하자 원화도 함께 강해졌다. 원/달러는 4월 30일 1,440원대에서 5월 7일 1,380원으로 내려왔다.",
+    "source_url": "https://kbthink.com/main/economy/issue_and_news/exchange-issue-report/2025/exchange-issue-report-250508.html"
+  },
+  {
+    "start_date": "2025-05-01",
+    "end_date": "2025-05-02",
+    "title": "일본은행 금리 동결과 성장 전망 하향",
+    "category": "BOJ",
+    "direction": "하락",
+    "description": "일본은행이 기준금리를 0.5%로 동결하고 2025년도 성장률 전망을 1.0%에서 0.5%로, 물가 전망을 2.7%에서 2.2%로 낮췄다.",
+    "source_url": "https://ko.tradingeconomics.com/japan/interest-rate/news/457102"
+  },
+  {
+    "start_date": "2025-10-04",
+    "end_date": "2025-10-10",
+    "title": "다카이치 자민당 총재 당선으로 엔화 약세",
+    "category": "일본정치",
+    "direction": "하락",
+    "description": "금융완화를 선호하는 다카이치 사나에가 자민당 총재로 뽑히며 일본은행 추가 금리인상이 어렵다는 관측이 퍼졌다. 엔/달러는 10월 8일 152.3엔으로 8개월 만의 엔화 최저를 기록했다. 한국 추석 연휴로 이 기간 움직임이 10월 10일 환율에 한꺼번에 반영됐다.",
+    "source_url": "https://www.ajunews.com/view/20251009153956741"
+  },
+  {
+    "start_date": "2026-06-16",
+    "end_date": "2026-06-16",
+    "title": "일본은행 기준금리 1%로 인상",
+    "category": "BOJ",
+    "direction": "혼조",
+    "description": "일본은행이 기준금리를 연 1%로 올렸지만, 미·일 금리차와 에너지 가격 상승으로 엔화는 반등하지 못했다.",
+    "source_url": "https://www.mt.co.kr/world/2026/07/12/2026071014321738641"
+  },
+  {
+    "start_date": "2026-06-29",
+    "end_date": "2026-07-30",
+    "title": "원화 강세와 엔화 40년 만의 약세로 원/엔 895원대",
+    "category": "시장",
+    "direction": "하락",
+    "description": "7월 들어 원화는 달러 대비 5.8% 강해진 반면 엔화는 0.9% 약해졌다. 엔/달러가 1986년 이후 최저 수준인 162엔대까지 오른 가운데, 7월 25일 원/엔은 895.44원으로 1년 8개월여 만의 최저를 기록했다.",
+    "source_url": "https://www.hankyung.com/article/2026072666311"
+  }
+]
