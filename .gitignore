@@ -14,3 +14,4 @@ frontend/config.js
 # OS 파일
 .DS_Store
 .vscode/frontend/config.js
+mcp_server/venv/

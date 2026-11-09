@@ -4,7 +4,7 @@ from collections import defaultdict, deque
 
 from fastapi import Request
 
-_hits: dict[str, deque] = defaultdict(deque)
+_hits: dict[tuple[str, str], deque] = defaultdict(deque)
 
 
 class RateLimitExceeded(Exception):
@@ -19,11 +19,12 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def check(request: Request, limit_per_minute: int) -> None:
+def check(request: Request, limit_per_minute: int, bucket: str = "chat") -> None:
+    """bucket별(채팅, 도구 등)로 따로 센다."""
     now = time.monotonic()
-    q = _hits[client_ip(request)]
+    q = _hits[(bucket, client_ip(request))]
     while q and now - q[0] > 60:
         q.popleft()
     if len(q) >= limit_per_minute:
-        raise RateLimitExceeded(f"요청이 너무 많습니다. 1분에 {limit_per_minute}번까지 질문할 수 있어요.")
+        raise RateLimitExceeded(f"요청이 너무 많습니다. 1분에 {limit_per_minute}번까지 요청할 수 있어요. 잠시 후 다시 시도하세요.")
     q.append(now)

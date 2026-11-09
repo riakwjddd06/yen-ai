@@ -59,6 +59,8 @@
 | 보너스 B | 기간 선택 그래프 (3개월, 1년, 5년, 전체)와 20일 이동평균 선, 급변동 구간 표시와 말풍선 |
 | 보너스 B | 통계: 기간 변동률, 20일·60일 이동평균, 변동성(연 환산), 1년·5년 중 위치, 월별 평균(기간 평균 대비), 연도별 평균·최고·최저 |
 | 보너스 B | CSV/JSON 내보내기, 다크 모드 (시스템 설정을 따르고, 버튼으로 바꾼 값은 브라우저에 기억) |
+| 보너스 A | Function Calling: AI가 도구 6개 중 필요한 것을 골라 데이터를 조회한 뒤 답하고, 답 아래에 사용한 도구를 표시 |
+| 보너스 A | 멀티채널: 같은 도구 6개를 MCP 서버로 열어 Claude 데스크톱 앱에서도 질문 |
 
 ## 기술 스택
 
@@ -80,6 +82,7 @@ flowchart LR
   R -->|읽기/쓰기| F[(Firestore<br/>data · conversations<br/>events · volatile_periods · meta)]
   R -->|요약을 넣은 질문| A[코디세이 API<br/>gpt-5.4]
   E[한국은행 ECOS] -.->|scripts로 수집·분석·적재| F
+  M[Claude 데스크톱<br/>MCP 서버] -->|/api/tools| R
 ```
 
 ### AI 채팅이 답을 만드는 순서
@@ -104,6 +107,69 @@ flowchart LR
 
 데이터를 추가, 수정, 삭제하면 전체를 다시 읽지 않고 바뀐 1건만 캐시(`meta/series`)에 반영한 뒤 요약을 다시 계산한다. 그래서 데이터 변경 1번에 Firestore 읽기는 0건이다.
 
+## AI 도구 호출 (보너스 A)
+
+시스템 프롬프트의 요약에는 큰 급변동 5개와 대표 숫자만 들어갑니다. 그 밖의 날짜, 기간, 이유의 자세한 설명, 예산 계산은 AI가 **도구를 불러서** 데이터를 받아 답합니다. 도구 정의는 `backend/app/services/tools.py` 한 곳에 있고, 채팅 AI와 MCP 서버가 같은 정의를 씁니다.
+
+| 도구 | 인자 | 이런 질문일 때 | 돌려주는 것 |
+|---|---|---|---|
+| `get_summary` | 없음 | 지금 엔화가 싼지 같은 전반적인 질문 | 최신 값, 평균, 최고·최저, 추세, 1년·5년 중 위치, 환전 점수 |
+| `get_period_stats` | `start_date`, `end_date` | "2022년 평균은?", "작년 이맘때는?" | 기간 평균·최고·최저·변동률, 날짜별 값(최대 60개), 메모 |
+| `get_volatile_periods` | `start_date?`, `end_date?`, `limit?` | "가장 크게 움직인 때는?" | 급변동 구간, 원화·엔화 요인 비중, 기록된 이유 제목 |
+| `get_events` | `start_date`, `end_date` | "그때 왜 올랐어?" | 기록된 이유의 설명과 출처 기사 링크 (없으면 없다고 알림) |
+| `get_travel_advice` | `travel_month?`, `budget_krw?` | "3월에 100만 원이면 몇 엔?" | 환전 점수, 그달 혼잡도와 종합 점수, 예산의 엔화 환산(지금, 1년 평균, 1년 최저) |
+| `search_conversations` | `keyword` | "전에 도쿄 얘기한 대화" | 제목에 그 낱말이 들어간 지난 대화 |
+
+### 호출 흐름
+
+1. `POST /api/chat`이 요약을 넣은 시스템 프롬프트와 질문, 도구 목록(`tools`)을 함께 AI에게 보낸다.
+2. AI가 도구가 필요하다고 판단하면 답 대신 `tool_calls`(도구 이름과 인자)를 돌려준다.
+3. 서버가 `tools.run()`으로 그 도구를 실행하고, 결과를 `role: "tool"` 메시지로 붙여 다시 묻는다.
+4. 2~3을 최대 3번까지 반복한다. AI가 도구 없이 글로 답하면 끝난다.
+5. 답과 함께 사용한 도구 기록을 대화에 저장하고, 화면은 답 아래에 "사용한 도구"를 보여 준다. 서버 로그에도 `도구 호출: 이름 인자`가 남는다.
+
+### 질문별 호출 기록
+
+배포 환경에서 실제로 물어본 결과입니다.
+
+| 질문 | 호출한 도구 (인자) | 호출 근거 | 답에 쓴 값 |
+|---|---|---|---|
+| 2022년 원/엔 평균이 얼마였어? | `get_period_stats` (2022-01-01 ~ 2022-12-31) | 요약에 2022년 값이 없음 | 평균 983.44원, 최고 1,065.56원(03-10), 최저 934.18원(06-09) |
+| 2019년에 크게 움직인 적 있어? 왜 그랬어? | (확인 후 기록) | 상위 5개 밖의 구간과 자세한 이유 | (확인 후 기록) |
+| 3월에 도쿄 가는데 100만 원이면 지금 몇 엔이야? | (확인 후 기록) | 예산 환산은 요약에 없음 | (확인 후 기록) |
+| 지금 엔화 싼 편이야? | 없음 | 요약만으로 답할 수 있음 | 최근 1년 중 하위 8% |
+
+## 멀티채널: MCP 서버 (보너스 A)
+
+`mcp_server/server.py`는 같은 도구 6개를 [MCP](https://modelcontextprotocol.io)로 여는 작은 서버입니다. 도구 정의와 실행은 배포된 백엔드의 `/api/tools`가 맡아서, 이 서버에는 키가 필요 없습니다. Claude 데스크톱 앱에 연결하면 그 앱에서도 우리 환율 데이터로 답을 받을 수 있습니다.
+
+![Claude 데스크톱에서 MCP 도구 호출](docs/screenshots/06-mcp.png)
+
+설치와 확인 (Mac):
+
+```bash
+cd yen-ai/mcp_server
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python server.py --check     # 백엔드 연결과 도구 2개 실행을 확인
+```
+
+Claude 데스크톱 앱 설정(`~/Library/Application Support/Claude/claude_desktop_config.json`)에 추가합니다. 경로는 자기 컴퓨터에 맞게 바꿉니다.
+
+```json
+{
+  "mcpServers": {
+    "yen-ai": {
+      "command": "/Users/<사용자>/Desktop/yen-ai/mcp_server/venv/bin/python",
+      "args": ["/Users/<사용자>/Desktop/yen-ai/mcp_server/server.py"]
+    }
+  }
+}
+```
+
+다른 백엔드 주소를 쓰려면 `"env": {"YEN_API_BASE_URL": "http://127.0.0.1:8000"}`을 함께 넣습니다.
+
 ## API
 
 | Method | 경로 | 설명 |
@@ -121,7 +187,9 @@ flowchart LR
 | GET | `/api/conversations` | 대화 목록 (최근 순, 메시지 본문 제외) |
 | GET | `/api/conversations/{id}` | 대화 전체 불러오기 |
 | DELETE | `/api/conversations/{id}` | 대화 삭제 |
-| POST | `/api/chat` | AI 채팅 (요약 주입, 대화 자동 저장) |
+| POST | `/api/chat` | AI 채팅 (요약 주입, 필요하면 도구 호출, 대화 자동 저장) |
+| GET | `/api/tools` | AI 도구 6개의 정의 (채팅과 MCP가 함께 씀) |
+| POST | `/api/tools/{name}` | 도구 하나 실행 (읽기 전용, IP당 분당 30회) |
 
 요청 본문과 예시는 [Swagger](https://yen-ai-api.onrender.com/docs)에서 바로 실행해 볼 수 있습니다.
 
@@ -277,7 +345,8 @@ Vercel 주소를 Render의 `ALLOWED_ORIGINS`에 넣어야 브라우저가 API를
 - **AI 비용:**
   - 토큰 상한
   - 이전 대화는 최근 10개만 함께 보냄
-  - IP당 분당 10회 채팅 제한
+  - IP당 분당 10회 채팅 제한, 도구 API는 분당 30회
+  - 도구 호출은 질문 1번에 최대 3번까지 반복
 - **Firestore 무료 한도:**
   - 요약, 그래프, 통계, 내보내기는 메모리와 `meta` 문서 캐시를 써서 요청마다 2,900건을 다시 읽지 않습니다.
   - 데이터를 추가, 수정, 삭제할 때도 바뀐 1건만 캐시에 반영합니다. 처음에는 변경 때마다 캐시를 지우고 전체를 다시 읽었는데, 테스트 중에 하루 읽기 한도를 다 써서 이렇게 바꿨습니다.
@@ -296,11 +365,14 @@ yen-ai/
 │  │  ├─ core/                # 설정, Firebase 연결, 오류 처리, 요청 제한
 │  │  ├─ schemas/             # Pydantic 요청·응답 모델
 │  │  ├─ routers/             # data, conversations, chat API
-│  │  └─ services/            # 비즈니스 로직 (요약 계산, 프롬프트, AI 호출, DB)
+│  │  └─ services/            # 비즈니스 로직 (요약·통계 계산, 프롬프트, AI 호출과 도구, DB)
 │  ├─ scripts/                # ECOS 수집, 급변동 분석, Firestore 적재
 │  ├─ data/                   # rates.csv, volatile_periods.csv, events.json, travel_calendar.json
 │  ├─ requirements.txt
 │  └─ .env.example
+├─ mcp_server/
+│  ├─ server.py               # MCP 서버 (백엔드 /api/tools를 Claude 데스크톱에 연결)
+│  └─ requirements.txt
 └─ frontend/
    ├─ index.html
    ├─ style.css
