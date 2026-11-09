@@ -136,29 +136,60 @@ def _all_series() -> dict:
     return _series_cache
 
 
+def full_series() -> dict:
+    """전체 날짜·값·메모 캐시 (통계 계산용). 보통 읽기 0건."""
+    with _lock:
+        return _all_series()
+
+
+def range_start(dates: list[str], range_key: str) -> int:
+    """기간(3m, 1y, 5y, all)이 시작하는 위치."""
+    days = RANGE_DAYS[range_key]
+    if not days:
+        return 0
+    start = (date.fromisoformat(dates[-1]) - timedelta(days=days)).isoformat()
+    return next(i for i, d in enumerate(dates) if d > start)
+
+
+def moving_average(values: list[float], window: int) -> list[float | None]:
+    """직전 window개(오늘 포함) 평균. 앞쪽 window-1개는 None."""
+    out: list[float | None] = []
+    total = 0.0
+    for i, v in enumerate(values):
+        total += v
+        if i >= window:
+            total -= values[i - window]
+        out.append(round(total / window, 2) if i >= window - 1 else None)
+    return out
+
+
+def sample_indices(values: list[float], limit: int = MAX_POINTS) -> list[int]:
+    """그래프용으로 점을 limit개 정도로 줄일 때 남길 위치. 최고·최저와 마지막 점은 꼭 남긴다."""
+    n = len(values)
+    if n <= limit:
+        return list(range(n))
+    step = n / limit
+    keep = {int(i * step) for i in range(limit)} | {n - 1}
+    keep |= {values.index(max(values)), values.index(min(values))}
+    return sorted(keep)
+
+
 def downsample(dates: list[str], values: list[float], limit: int = MAX_POINTS) -> tuple[list[str], list[float]]:
-    if len(dates) <= limit:
-        return dates, values
-    step = len(dates) / limit
-    keep = {int(i * step) for i in range(limit)} | {len(dates) - 1}
-    keep |= {values.index(max(values)), values.index(min(values))}  # 최고·최저는 꼭 남긴다
-    idx = sorted(keep)
+    idx = sample_indices(values, limit)
     return [dates[i] for i in idx], [values[i] for i in idx]
 
 
 def get_series(range_key: str) -> dict:
     with _lock:
         full = _all_series()
-    dates, values = full["dates"], full["values"]
-    if not dates:
+    all_dates, all_values = full["dates"], full["values"]
+    if not all_dates:
         raise NotFoundError("data 컬렉션이 비어 있습니다.")
-    days = RANGE_DAYS[range_key]
-    if days:
-        start = (date.fromisoformat(dates[-1]) - timedelta(days=days)).isoformat()
-        first = next(i for i, d in enumerate(dates) if d > start)
-        dates, values = dates[first:], values[first:]
+    first = range_start(all_dates, range_key)
+    dates, values = all_dates[first:], all_values[first:]
+    ma20 = moving_average(all_values, 20)[first:]  # 기간 앞쪽도 이전 데이터로 계산해 끊기지 않게
     hi, lo = max(values), min(values)
-    out_dates, out_values = downsample(dates, values)
+    idx = sample_indices(values)
     events = [e for e in get_summary().get("events", []) if e["end_date"] >= dates[0] and e["start_date"] <= dates[-1]]
     return {
         "range": range_key,
@@ -168,8 +199,9 @@ def get_series(range_key: str) -> dict:
         "average": round(sum(values) / len(values), 2),
         "max": {"date": dates[values.index(hi)], "value": hi},
         "min": {"date": dates[values.index(lo)], "value": lo},
-        "dates": out_dates,
-        "values": out_values,
+        "dates": [dates[i] for i in idx],
+        "values": [values[i] for i in idx],
+        "ma20": [ma20[i] for i in idx],
         "events": events,
     }
 

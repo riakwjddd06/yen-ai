@@ -1,4 +1,4 @@
-"""Data API: 환율 데이터 CRUD 4개 + 요약 1개."""
+"""Data API: 환율 데이터 CRUD 4개 + 요약, 그래프, 통계, 내보내기."""
 from datetime import date
 from typing import Annotated, Literal, Optional
 
@@ -8,8 +8,8 @@ import json
 
 from fastapi import APIRouter, Path, Query, Response
 
-from app.schemas.data import DataCreate, DataList, DataOut, DataUpdate, SeriesOut, SummaryOut
-from app.services import data_service, summary_service
+from app.schemas.data import DataCreate, DataList, DataOut, DataUpdate, SeriesOut, StatisticsOut, SummaryOut
+from app.services import data_service, stats_service, summary_service
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -27,6 +27,13 @@ def read_summary():
 def read_series(range: Literal["3m", "1y", "5y", "all"] = Query("1y", description="3m = 3개월, 1y = 1년, 5y = 5년, all = 전체")):
     """기간 안의 날짜·값 배열과 평균·최고·최저, 그 기간에 걸친 급변동 이유를 돌려준다."""
     return summary_service.get_series(range)
+
+
+@router.get("/statistics", response_model=StatisticsOut, summary="통계 (이동평균, 변동성, 백분위, 월별·연도별)")
+def read_statistics(range: Literal["3m", "1y", "5y", "all"] = Query("1y", description="3m = 3개월, 1y = 1년, 5y = 5년, all = 전체")):
+    """기간 변동률, 20·60일 이동평균, 변동성(연율), 1년·5년 중 위치, 월별 평균(기간 평균 대비), 연도별 최고·최저를 돌려준다.
+    캐시된 시계열로 계산하므로 Firestore 읽기가 거의 없다."""
+    return stats_service.get_statistics(range)
 
 
 @router.get("/export", summary="데이터 내보내기 (CSV 또는 JSON 다운로드)")

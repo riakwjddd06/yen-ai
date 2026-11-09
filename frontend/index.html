@@ -56,6 +56,7 @@
         <h2 id="chart-heading" class="sr-only">환율 그래프</h2>
         <div class="chart-legend">
           <span class="legend-item"><span class="legend-line"></span>원/100엔</span>
+          <label class="legend-item legend-toggle"><input id="ma-toggle" type="checkbox" checked><span class="legend-ma"></span>20일 이동평균</label>
           <span class="legend-item"><span class="legend-dash"></span><span id="legend-avg">평균</span></span>
           <span class="legend-item"><span class="legend-band"></span>기록된 급변동 구간</span>
           <span id="legend-range" class="legend-range"></span>
@@ -84,6 +85,52 @@
         <div class="fact"><span class="fact-label">지금 환전 점수</span><span id="fact-score" class="fact-value">—</span><span id="fact-score-sub" class="fact-sub"></span></div>
         <div class="fact"><span class="fact-label">최근 추세</span><span id="fact-trend" class="fact-value">—</span><span id="fact-trend-sub" class="fact-sub"></span></div>
         <div class="fact"><span class="fact-label">분석한 데이터</span><span id="fact-period" class="fact-value">—</span><span id="fact-period-sub" class="fact-sub"></span></div>
+      </section>
+
+      <section class="stats" aria-labelledby="stats-heading">
+        <div class="stats-head">
+          <h2 id="stats-heading">기간 통계</h2>
+          <p id="stats-range" class="stats-range"></p>
+        </div>
+        <div class="stat-tiles">
+          <div class="stat"><span class="stat-label">기간 변동</span><span id="st-change" class="stat-value">—</span><span id="st-change-sub" class="stat-sub"></span></div>
+          <div class="stat"><span class="stat-label">20일 이동평균</span><span id="st-ma20" class="stat-value">—</span><span id="st-ma20-sub" class="stat-sub"></span></div>
+          <div class="stat"><span class="stat-label">60일 이동평균</span><span id="st-ma60" class="stat-value">—</span><span id="st-ma60-sub" class="stat-sub"></span></div>
+          <div class="stat" title="하루 변동폭의 표준편차를 1년 기준으로 바꾼 값이에요. 클수록 환율이 많이 출렁였다는 뜻이에요."><span class="stat-label">변동성 (연 환산)</span><span id="st-vol" class="stat-value">—</span><span id="st-vol-sub" class="stat-sub"></span></div>
+          <div class="stat"><span class="stat-label">최근 5년 중 위치</span><span id="st-p5" class="stat-value">—</span><span id="st-p5-sub" class="stat-sub"></span></div>
+        </div>
+
+        <div class="monthly">
+          <div class="monthly-head">
+            <h3>월별 평균</h3>
+            <span class="legend-item"><span class="swatch swatch--dear"></span>기간 평균보다 비싼 달</span>
+            <span class="legend-item"><span class="swatch swatch--cheap"></span>싼 달</span>
+          </div>
+          <div id="monthly-plot" class="monthly-plot" role="img" aria-label="월별 평균을 불러오는 중">
+            <span class="monthly-zero"></span>
+            <div id="monthly-bars" class="monthly-bars"></div>
+            <div id="monthly-tip" class="chart-tip" hidden></div>
+          </div>
+          <div id="monthly-axis" class="chart-axis" aria-hidden="true"></div>
+        </div>
+
+        <details class="yearly">
+          <summary>연도별 평균, 최고, 최저 보기</summary>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">연도</th>
+                  <th scope="col" class="num">평균</th>
+                  <th scope="col" class="num">최고</th>
+                  <th scope="col" class="num">최저</th>
+                  <th scope="col" class="num">연간 변동</th>
+                </tr>
+              </thead>
+              <tbody id="yearly-rows"></tbody>
+            </table>
+          </div>
+        </details>
       </section>
     </main>
 

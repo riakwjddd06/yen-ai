@@ -92,6 +92,7 @@ const API = (() => {
     health: () => request("/health", { timeout: 15000 }),
     summary: () => request("/api/data/summary"),
     series: (range) => request(`/api/data/series?range=${range}`),
+    statistics: (range) => request(`/api/data/statistics?range=${range}`),
     exportData: (format) => download(`/api/data/export?format=${format}`, `yen_rates.${format}`),
     listData: (params) => request(`/api/data${query(params)}`),
     createData: (body) => request("/api/data", { method: "POST", body }),

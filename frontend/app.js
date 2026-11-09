@@ -12,7 +12,9 @@
     filter: { start: "", end: "" },
     range: "1y",             // 그래프 기간
     seriesCache: {},         // 기간별 그래프 데이터
+    statsCache: {},          // 기간별 통계
     series: null,
+    showMa: true,            // 20일 이동평균 선 표시
   };
 
   /* ── 공통 도우미 ───────────────────────── */
@@ -338,8 +340,10 @@
   async function loadSeries(range, { force = false } = {}) {
     state.range = range;
     document.querySelectorAll(".period-btn").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === range)));
+    loadStats(range, { force });
     try {
       if (force || !state.seriesCache[range]) state.seriesCache[range] = await API.series(range);
+      if (state.range !== range) return;  // 그사이 다른 기간을 눌렀으면 그리지 않는다
       drawChart(state.seriesCache[range]);
     } catch (err) {
       $("chart").setAttribute("aria-label", "그래프를 불러오지 못했어요");
@@ -351,7 +355,9 @@
     state.series = series;
     const { dates, values } = series;
     const W = 1000, H = 200, PAD = 10;
-    const hi = Math.max(...values), lo = Math.min(...values);
+    const ma = series.ma20 || [];
+    const maValues = ma.filter((v) => v !== null);
+    const hi = Math.max(...values, ...maValues), lo = Math.min(...values, ...maValues);
     const span = hi - lo || 1;
     const x = (i) => (values.length === 1 ? W : (i / (values.length - 1)) * W);
     const y = (v) => PAD + ((hi - v) / span) * (H - PAD * 2);
@@ -371,6 +377,17 @@
       root.append(rect);
     });
     root.append(svg("line", { class: "chart-avg", x1: 0, x2: W, y1: y(series.average), y2: y(series.average) }));
+    if (state.showMa && maValues.length) {
+      // 20일 이동평균: 값이 없는 앞부분(None)은 건너뛰고 이어서 그린다
+      let started = false;
+      const md = ma.map((v, i) => {
+        if (v === null) return "";
+        const cmd = started ? "L" : "M";
+        started = true;
+        return `${cmd}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
+      }).join(" ");
+      root.append(svg("path", { class: "chart-ma", d: md }));
+    }
     const d = values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
     root.append(svg("path", { class: "chart-line", d }));
 
@@ -423,6 +440,7 @@
       tip.replaceChildren(
         el("span", { text: day }),
         el("strong", { text: `${won(s.values[i])}원` }),
+        ...(state.showMa && s.ma20 && s.ma20[i] !== null ? [el("small", { text: `20일 평균 ${won(s.ma20[i])}원` })] : []),
         ...(event ? [el("em", { text: event.title })] : []),
       );
       tip.hidden = false;
@@ -430,6 +448,105 @@
       tip.dataset.flip = String(ratio > 0.7);
     });
     chart.addEventListener("pointerleave", () => { tip.hidden = true; guide.hidden = true; });
+  }
+
+  /* ── 3-2. 기간 통계 ───────────────────────── */
+  const RANGE_NAMES = { "3m": "최근 3개월", "1y": "최근 1년", "5y": "최근 5년", all: "전체" };
+  const signed = (n, digits = 1) => `${n > 0 ? "+" : ""}${Number(n).toFixed(digits)}`;
+
+  async function loadStats(range, { force = false } = {}) {
+    try {
+      if (force || !state.statsCache[range]) state.statsCache[range] = await API.statistics(range);
+      if (state.range === range) renderStats(state.statsCache[range]);
+    } catch (err) {
+      $("stats-range").textContent = `통계를 불러오지 못했어요. ${err.message}`;
+    }
+  }
+
+  function gapText(ma) {
+    if (!ma) return "데이터가 모자라요";
+    if (Math.abs(ma.gap_pct) < 0.05) return "지금과 거의 같아요";
+    return ma.gap_pct > 0 ? `지금이 ${ma.gap_pct.toFixed(1)}% 높아요` : `지금이 ${Math.abs(ma.gap_pct).toFixed(1)}% 낮아요`;
+  }
+
+  function renderStats(st) {
+    $("stats-range").textContent = `${RANGE_NAMES[st.range]}, ${st.start} – ${st.end} (${st.count.toLocaleString("ko-KR")}영업일)`;
+    $("st-change").textContent = `${signed(st.change_pct)}%`;
+    $("st-change-sub").textContent = st.change_pct < 0 ? "기간 동안 엔화가 싸졌어요" : "기간 동안 엔화가 비싸졌어요";
+    $("st-ma20").textContent = st.ma20 ? won(st.ma20.value) : "—";
+    $("st-ma20-sub").textContent = gapText(st.ma20);
+    $("st-ma60").textContent = st.ma60 ? won(st.ma60.value) : "—";
+    $("st-ma60-sub").textContent = gapText(st.ma60);
+    $("st-vol").textContent = st.volatility_pct === null ? "—" : `${st.volatility_pct.toFixed(1)}%`;
+    $("st-vol-sub").textContent = st.volatility_20d_pct === null ? "" : `최근 20일은 ${st.volatility_20d_pct.toFixed(1)}%`;
+    $("st-p5").textContent = `하위 ${Math.round(st.percentile_5y)}%`;
+    $("st-p5-sub").textContent = `최근 1년 중에서는 하위 ${Math.round(st.percentile_1y)}%`;
+    drawMonthly(st);
+    renderYearly(st.yearly);
+  }
+
+  // 월별 평균: 기간 평균(점선)보다 비싼 달은 위로, 싼 달은 아래로
+  function drawMonthly(st) {
+    const months = st.monthly;
+    const bars = $("monthly-bars");
+    const tip = $("monthly-tip");
+    bars.replaceChildren();
+    tip.hidden = true;
+    bars.style.setProperty("--gap", months.length > 60 ? "1px" : "2px");
+    const maxAbs = Math.max(...months.map((m) => Math.abs(m.diff_pct)), 0.5);
+
+    months.forEach((m, i) => {
+      const up = m.diff_pct >= 0;
+      const label = `${m.month} 평균 ${won(m.average)}원, 기간 평균보다 ${signed(m.diff_pct)}%`;
+      const col = el("div", { class: "mbar-col", tabindex: "0", "aria-label": label });
+      const bar = el("span", { class: `mbar mbar--${up ? "up" : "down"}` });
+      bar.style.height = `${(Math.abs(m.diff_pct) / maxAbs) * 48}%`;
+      col.append(bar);
+      const show = () => {
+        const ratio = (i + 0.5) / months.length;
+        tip.replaceChildren(
+          el("span", { text: m.month }),
+          el("strong", { text: `${won(m.average)}원` }),
+          el("small", { text: `기간 평균보다 ${signed(m.diff_pct)}% (${up ? "비싼 달" : "싼 달"})` }),
+        );
+        tip.hidden = false;
+        tip.style.left = `${ratio * 100}%`;
+        tip.dataset.flip = String(ratio > 0.6);
+      };
+      col.addEventListener("pointerenter", show);
+      col.addEventListener("focus", show);
+      col.addEventListener("pointerleave", () => { tip.hidden = true; });
+      col.addEventListener("blur", () => { tip.hidden = true; });
+      bars.append(col);
+    });
+
+    const axis = $("monthly-axis");
+    axis.replaceChildren();
+    const picks = months.length > 2 ? [0, Math.floor((months.length - 1) / 2), months.length - 1] : months.map((_, i) => i);
+    picks.forEach((i) => {
+      axis.append(el("span", { text: months[i].month.replace("-", "."), style: `left: ${((i + 0.5) / months.length) * 100}%` }));
+    });
+
+    const cheapest = months.reduce((a, b) => (b.diff_pct < a.diff_pct ? b : a));
+    const dearest = months.reduce((a, b) => (b.diff_pct > a.diff_pct ? b : a));
+    $("monthly-plot").setAttribute(
+      "aria-label",
+      `월별 평균 ${months.length}개월. 가장 싼 달 ${cheapest.month} (${signed(cheapest.diff_pct)}%), 가장 비싼 달 ${dearest.month} (${signed(dearest.diff_pct)}%). 아래 연도별 표에서 숫자를 볼 수 있어요.`,
+    );
+  }
+
+  function renderYearly(years) {
+    const rows = $("yearly-rows");
+    rows.replaceChildren();
+    [...years].reverse().forEach((y) => {
+      rows.append(el("tr", {}, [
+        el("td", { text: String(y.year) }),
+        el("td", { class: "num", text: won(y.average) }),
+        el("td", { class: "num", text: `${won(y.max.value)} (${y.max.date.slice(5)})` }),
+        el("td", { class: "num", text: `${won(y.min.value)} (${y.min.date.slice(5)})` }),
+        el("td", { class: `num ${y.change_pct >= 0 ? "up" : "down"}`, text: `${signed(y.change_pct)}%` }),
+      ]));
+    });
   }
 
   /* ── 4. 대화 기록 ───────────────────────── */
@@ -663,6 +780,7 @@
   // 데이터가 바뀌면 요약과 그래프를 다시 받는다
   function refreshAfterChange() {
     state.seriesCache = {};
+    state.statsCache = {};
     loadSummary();
     loadSeries(state.range, { force: true });
   }
@@ -712,6 +830,10 @@
 
     document.querySelectorAll(".period-btn").forEach((b) => b.addEventListener("click", () => loadSeries(b.dataset.range)));
     bindChartHover();
+    $("ma-toggle").addEventListener("change", (e) => {
+      state.showMa = e.target.checked;
+      if (state.series) drawChart(state.series);
+    });
     window.addEventListener("resize", () => { if (state.series) drawChart(state.series); });
 
     $("add-form").addEventListener("submit", addData);

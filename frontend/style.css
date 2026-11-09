@@ -19,6 +19,7 @@
   --dear-mist: #f6e2dc;
   --band-text: #9a3a2c;
   --avg: #8a94a6;
+  --ma: #c08417;            /* 20일 이동평균 선 */
   --on-accent: #ffffff;     /* 네이비 배경 위 글자 */
   --on-dear: #ffffff;
   --tip-bg: #0f1d3d;        /* 말풍선, 알림 */
@@ -51,6 +52,7 @@
     --dear-mist: #3d2521;
     --band-text: #f0a08b;
     --avg: #6c7894;
+    --ma: #c9922f;
     --on-accent: #0e1526;
     --on-dear: #1f0f0b;
     --tip-bg: #2b3858;
@@ -77,6 +79,7 @@
   --dear-mist: #3d2521;
   --band-text: #f0a08b;
   --avg: #6c7894;
+  --ma: #c9922f;
   --on-accent: #0e1526;
   --on-dear: #1f0f0b;
   --tip-bg: #2b3858;
@@ -225,6 +228,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .legend-line { width: 16px; height: 2px; background: var(--accent); }
 .legend-dash { width: 16px; border-top: 2px dashed var(--avg); }
 .legend-band { width: 12px; height: 12px; background: var(--dear-mist); }
+.legend-ma { width: 16px; height: 2px; background: var(--ma); }
+.legend-toggle { cursor: pointer; }
+.legend-toggle input { width: 14px; height: 14px; margin: 0; accent-color: var(--accent); }
 .legend-range { margin-left: auto; }
 
 .chart { position: relative; height: 210px; cursor: crosshair; }
@@ -232,6 +238,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chart-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .chart-avg { stroke: var(--avg); stroke-width: 1.5; stroke-dasharray: 6 6; vector-effect: non-scaling-stroke; }
 .chart-band { fill: var(--dear-mist); }
+.chart-ma { fill: none; stroke: var(--ma); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 
 .chart-dot {
   position: absolute;
@@ -271,6 +278,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chart-tip[data-flip="true"] { transform: translateX(calc(-100% - 8px)); }
 .chart-tip strong { display: block; font-size: 15px; font-weight: 600; }
 .chart-tip em { display: block; margin-top: 4px; font-style: normal; color: #f3c7bb; }
+.chart-tip small { display: block; font-size: 12px; opacity: 0.8; }
 
 .chart-axis { position: relative; height: 18px; font-size: 12px; color: var(--muted); }
 .chart-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
@@ -309,6 +317,46 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .fact { display: flex; flex-direction: column; gap: 2px; }
 .fact-label, .fact-sub { font-size: 13px; color: var(--muted); }
 .fact-value { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ── 기간 통계 ── */
+.stats { display: flex; flex-direction: column; gap: 16px; padding-top: 18px; border-top: 1px solid var(--line); }
+.stats-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.stats-head h2 { font-size: 15px; font-weight: 600; }
+.stats-range { font-size: 13px; color: var(--muted); }
+.stat-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+.stat-label, .stat-sub { font-size: 12px; color: var(--muted); }
+.stat-value { font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.monthly { display: flex; flex-direction: column; gap: 8px; }
+.monthly-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.monthly-head h3 { margin-right: 4px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.swatch { width: 10px; height: 10px; border-radius: 2px; }
+.swatch--dear { background: var(--dear); }
+.swatch--cheap { background: var(--cheap); }
+.monthly-plot { position: relative; height: 120px; }
+.monthly-zero { position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--avg); }
+.monthly-bars { position: absolute; inset: 0; display: flex; gap: var(--gap, 2px); }
+.mbar-col { position: relative; flex: 1; min-width: 0; border-radius: 3px; cursor: crosshair; }
+.mbar-col:hover, .mbar-col:focus-visible { background: var(--hover); outline: none; }
+.mbar { position: absolute; left: 0; right: 0; min-height: 2px; }
+.mbar--up { bottom: 50%; background: var(--dear); border-radius: 4px 4px 0 0; }
+.mbar--down { top: 50%; background: var(--cheap); border-radius: 0 0 4px 4px; }
+.monthly-plot .chart-tip { top: -6px; }
+
+.yearly summary { font-size: 14px; color: var(--muted); cursor: pointer; }
+.yearly summary:hover { color: var(--accent); }
+.yearly .table-wrap { max-height: none; }
+.yearly td.up { color: var(--dear); }
+.yearly td.down { color: var(--cheap); }
 
 /* ── 아래: 대화 기록, 데이터 관리 ── */
 .section-head {
@@ -580,6 +628,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   }
   .insight { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .gauge-block { grid-column: 1 / -1; }
+  .stat-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
@@ -596,6 +645,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .legend-range { margin-left: 0; flex-basis: 100%; }
   .insight { grid-template-columns: 1fr 1fr; gap: 18px; }
   .fact:last-child { grid-column: 1 / -1; }
+  .stat-tiles { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-value { font-size: 18px; }
   .conv-delete { opacity: 1; }
   .msg { max-width: 100%; }
 }

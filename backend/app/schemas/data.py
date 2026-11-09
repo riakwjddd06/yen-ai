@@ -133,4 +133,43 @@ class SeriesOut(BaseModel):
     min: DatedValue
     dates: list[str]
     values: list[float]
+    ma20: list[Optional[float]] = Field(..., description="20영업일 이동평균 (dates와 같은 위치)")
     events: list[EventBrief]
+
+
+class MovingAverage(BaseModel):
+    value: float
+    gap_pct: float = Field(..., description="지금 환율이 이동평균보다 몇 % 높은지 (음수면 낮음)")
+
+
+class MonthlyStat(BaseModel):
+    month: str = Field(..., examples=["2026-10"])
+    average: float
+    diff_pct: float = Field(..., description="기간 평균 대비 % (양수 = 비싼 달)")
+    days: int
+
+
+class YearlyStat(BaseModel):
+    year: int
+    average: float
+    max: DatedValue
+    min: DatedValue
+    change_pct: float = Field(..., description="그해 첫 영업일 대비 마지막 영업일 변동률")
+
+
+class StatisticsOut(BaseModel):
+    range: str
+    start: str
+    end: str
+    count: int
+    latest: DatedValue
+    change_pct: float = Field(..., description="기간 첫날 대비 마지막 날 변동률 (%)")
+    average: float
+    volatility_pct: Optional[float] = Field(None, description="기간 변동성 (하루 변동의 표준편차를 1년 기준으로 환산, %)")
+    volatility_20d_pct: Optional[float] = Field(None, description="최근 20영업일 변동성 (연율, %)")
+    ma20: Optional[MovingAverage]
+    ma60: Optional[MovingAverage]
+    percentile_1y: float
+    percentile_5y: float
+    monthly: list[MonthlyStat]
+    yearly: list[YearlyStat]
