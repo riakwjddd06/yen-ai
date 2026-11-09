@@ -9,6 +9,8 @@
 | 백엔드 API | https://yen-ai-api.onrender.com |
 | API 문서 (Swagger) | https://yen-ai-api.onrender.com/docs |
 
+기획서와 단계별 진행 기록은 [docs/PLAN.md](docs/PLAN.md)에 있습니다.
+
 > **처음 접속하면 최대 1분 걸릴 수 있어요.** 백엔드가 Render 무료 플랜이라 15분 동안 요청이 없으면 서버가 잠듭니다. 화면 위에 "서버를 깨우는 중" 안내가 뜨고, 서버가 깨면 오른쪽 위가 **서버 연결됨**으로 바뀝니다.
 
 ## 스크린샷
