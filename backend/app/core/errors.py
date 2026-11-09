@@ -45,7 +45,7 @@ def register_error_handlers(app: FastAPI) -> None:
         logger.warning("Firestore 무료 한도 초과: %s", exc)
         return JSONResponse(
             status_code=503,
-            content={"detail": "오늘 데이터베이스 무료 사용량을 다 썼어요. 한국 시간 오후 5시(여름에는 4시)에 초기화되니 그 뒤에 다시 시도해 주세요."},
+            content={"detail": "오늘 데이터베이스 무료 사용량을 다 썼어요. 매일 한국 시간 오후 4~5시쯤 초기화되니 그 뒤에 다시 시도해 주세요."},
         )
 
     @app.exception_handler(google_exceptions.GoogleAPICallError)
