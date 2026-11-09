@@ -121,3 +121,16 @@ class SummaryOut(BaseModel):
     events: list[EventBrief] = Field([], description="기사로 확인한 급변동 이유 전체 (날짜순)")
     travel: Travel
     computed_at: str
+
+
+class SeriesOut(BaseModel):
+    range: str = Field(..., description="3m, 1y, 5y, all")
+    start: str
+    end: str
+    count: int = Field(..., description="기간 안의 실제 데이터 수 (그래프 점은 최대 400개로 줄여서 보냄)")
+    average: float
+    max: DatedValue
+    min: DatedValue
+    dates: list[str]
+    values: list[float]
+    events: list[EventBrief]

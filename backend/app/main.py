@@ -9,7 +9,7 @@ from app.routers import chat, conversations, data
 app = FastAPI(
     title="엔화 환율 AI 비서 API",
     description="원/엔 환율 데이터를 관리하고, 데이터 요약을 바탕으로 AI가 답하는 API입니다.",
-    version="0.4.0",
+    version="0.5.0",
 )
 
 # CORS: 허용한 주소(프론트엔드)에서 온 브라우저 요청만 받는다

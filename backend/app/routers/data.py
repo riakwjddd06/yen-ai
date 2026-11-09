@@ -2,9 +2,13 @@
 from datetime import date
 from typing import Annotated, Literal, Optional
 
+import csv
+import io
+import json
+
 from fastapi import APIRouter, Path, Query, Response
 
-from app.schemas.data import DataCreate, DataList, DataOut, DataUpdate, SummaryOut
+from app.schemas.data import DataCreate, DataList, DataOut, DataUpdate, SeriesOut, SummaryOut
 from app.services import data_service, summary_service
 
 router = APIRouter(prefix="/api/data", tags=["data"])
@@ -17,6 +21,28 @@ DateId = Annotated[str, Path(pattern=r"^\d{4}-\d{2}-\d{2}$", description="문서
 def read_summary():
     """기간, 개수, 평균·최고·최저, 추세, 1년 백분위, 급변동 상위 5개와 이유, 여행 점수를 돌려준다."""
     return summary_service.get_summary()
+
+
+@router.get("/series", response_model=SeriesOut, summary="그래프용 시계열 (기간별, 최대 400점)")
+def read_series(range: Literal["3m", "1y", "5y", "all"] = Query("1y", description="3m = 3개월, 1y = 1년, 5y = 5년, all = 전체")):
+    """기간 안의 날짜·값 배열과 평균·최고·최저, 그 기간에 걸친 급변동 이유를 돌려준다."""
+    return summary_service.get_series(range)
+
+
+@router.get("/export", summary="데이터 내보내기 (CSV 또는 JSON 다운로드)")
+def export_data(format: Literal["csv", "json"] = Query("csv")):
+    rows = data_service.all_records()
+    if format == "json":
+        body = json.dumps(rows, ensure_ascii=False, indent=2)
+        return Response(body, media_type="application/json",
+                        headers={"Content-Disposition": 'attachment; filename="yen_rates.json"'})
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=["date", "value", "memo"])
+    writer.writeheader()
+    writer.writerows(rows)
+    # utf-8-sig(BOM): 엑셀에서 한글 메모가 깨지지 않게 한다
+    return Response(buf.getvalue().encode("utf-8-sig"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="yen_rates.csv"'})
 
 
 @router.post("", response_model=DataOut, status_code=201, summary="데이터 추가")

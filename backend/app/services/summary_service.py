@@ -6,7 +6,7 @@ Firestore 무료 한도(하루 읽기 5만 건)를 아끼기 위해 3단계로 �
 """
 import json
 import threading
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from app.core.errors import NotFoundError
@@ -23,6 +23,10 @@ _lock = threading.Lock()
 
 def _meta_ref():
     return get_db().collection("meta").document("summary")
+
+
+def _series_ref():
+    return get_db().collection("meta").document("series")
 
 
 def _periods_and_events() -> tuple[list[dict], list[dict]]:
@@ -89,8 +93,69 @@ def get_summary() -> dict:
         return _cache
 
 
+RANGE_DAYS = {"3m": 92, "1y": 365, "5y": 1826, "all": None}
+MAX_POINTS = 400  # 그래프 점이 너무 많으면 브라우저가 느려지므로 줄인다
+
+_series_cache: dict | None = None
+
+
+def _all_series() -> dict:
+    """전체 (날짜, 값) 배열. 메모리 → meta/series 문서(읽기 1건) → 전체 읽기 순서로 찾는다."""
+    global _series_cache
+    if _series_cache:
+        return _series_cache
+    saved = _series_ref().get()
+    if saved.exists:
+        _series_cache = saved.to_dict()
+        return _series_cache
+    rows = data_service.all_values()
+    _series_cache = {"dates": [d for d, _ in rows], "values": [v for _, v in rows]}
+    _series_ref().set(_series_cache)  # 2,918건이어도 문서 하나(약 90KB)에 들어간다
+    return _series_cache
+
+
+def downsample(dates: list[str], values: list[float], limit: int = MAX_POINTS) -> tuple[list[str], list[float]]:
+    if len(dates) <= limit:
+        return dates, values
+    step = len(dates) / limit
+    keep = {int(i * step) for i in range(limit)} | {len(dates) - 1}
+    keep |= {values.index(max(values)), values.index(min(values))}  # 최고·최저는 꼭 남긴다
+    idx = sorted(keep)
+    return [dates[i] for i in idx], [values[i] for i in idx]
+
+
+def get_series(range_key: str) -> dict:
+    with _lock:
+        full = _all_series()
+    dates, values = full["dates"], full["values"]
+    if not dates:
+        raise NotFoundError("data 컬렉션이 비어 있습니다.")
+    days = RANGE_DAYS[range_key]
+    if days:
+        start = (date.fromisoformat(dates[-1]) - timedelta(days=days)).isoformat()
+        first = next(i for i, d in enumerate(dates) if d > start)
+        dates, values = dates[first:], values[first:]
+    hi, lo = max(values), min(values)
+    out_dates, out_values = downsample(dates, values)
+    events = [e for e in get_summary().get("events", []) if e["end_date"] >= dates[0] and e["start_date"] <= dates[-1]]
+    return {
+        "range": range_key,
+        "start": dates[0],
+        "end": dates[-1],
+        "count": len(dates),
+        "average": round(sum(values) / len(values), 2),
+        "max": {"date": dates[values.index(hi)], "value": hi},
+        "min": {"date": dates[values.index(lo)], "value": lo},
+        "dates": out_dates,
+        "values": out_values,
+        "events": events,
+    }
+
+
 def invalidate() -> None:
-    global _cache
+    global _cache, _series_cache
     with _lock:
         _cache = None
+        _series_cache = None
         _meta_ref().delete()
+        _series_ref().delete()

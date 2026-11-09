@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>엔화 환율 AI 비서</title>
+  <meta name="description" content="원/엔 환율 데이터를 아는 AI 비서. 지금 엔화가 싼지, 왜 크게 움직였는지, 언제 환전하면 좋을지 물어보세요.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="wake-banner" class="banner" role="status" hidden>
+    서버를 깨우는 중이에요. 무료 서버라 첫 연결에 최대 1분 걸릴 수 있어요.
+  </div>
+
+  <div class="layout">
+    <!-- ── 왼쪽 위: 환율, 그래프, 1년 위치 ── -->
+    <main class="board board--top">
+      <header class="topbar">
+        <h1 class="brand">엔화 환율 AI 비서</h1>
+        <p id="server-status" class="server-status" data-state="pending">서버 연결 확인 중</p>
+      </header>
+
+      <section class="rate-row" aria-labelledby="rate-heading">
+        <h2 id="rate-heading" class="sr-only">현재 환율</h2>
+        <div>
+          <p id="rate-date" class="rate-date">요약을 불러오는 중</p>
+          <p class="rate-line">
+            <span class="rate-value"><span id="rate-value">—</span><span class="rate-won">원</span></span>
+            <span id="rate-delta" class="rate-delta"></span>
+          </p>
+        </div>
+        <div class="period" role="group" aria-label="그래프 기간">
+          <button type="button" class="period-btn" data-range="3m" aria-pressed="false">3개월</button>
+          <button type="button" class="period-btn" data-range="1y" aria-pressed="true">1년</button>
+          <button type="button" class="period-btn" data-range="5y" aria-pressed="false">5년</button>
+          <button type="button" class="period-btn" data-range="all" aria-pressed="false">전체</button>
+        </div>
+      </section>
+
+      <section class="chart-card" aria-labelledby="chart-heading">
+        <h2 id="chart-heading" class="sr-only">환율 그래프</h2>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="legend-line"></span>원/100엔</span>
+          <span class="legend-item"><span class="legend-dash"></span><span id="legend-avg">평균</span></span>
+          <span class="legend-item"><span class="legend-band"></span>기록된 급변동 구간</span>
+          <span id="legend-range" class="legend-range"></span>
+        </div>
+        <div id="chart" class="chart" role="img" aria-label="환율 그래프를 불러오는 중">
+          <svg id="chart-svg" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <span id="chart-dot" class="chart-dot" hidden></span>
+          <span id="chart-last" class="chart-last"></span>
+          <span id="chart-guide" class="chart-guide" hidden></span>
+          <div id="chart-tip" class="chart-tip" hidden></div>
+        </div>
+        <div id="chart-axis" class="chart-axis" aria-hidden="true"></div>
+      </section>
+
+      <section class="insight" aria-labelledby="insight-heading">
+        <h2 id="insight-heading" class="sr-only">최근 1년 중 위치와 요약</h2>
+        <div class="gauge-block">
+          <p id="gauge-caption" class="gauge-caption">최근 1년 중 위치</p>
+          <div id="gauge" class="gauge" role="img" aria-label="최근 1년 중 위치를 불러오는 중">
+            <span class="gauge-zone gauge-zone--cheap"></span>
+            <span class="gauge-zone gauge-zone--dear"></span>
+            <span id="gauge-marker" class="gauge-marker" hidden></span>
+          </div>
+          <div class="gauge-ends" aria-hidden="true"><span>1년 중 가장 쌀 때</span><span>가장 비쌀 때</span></div>
+        </div>
+        <div class="fact"><span class="fact-label">지금 환전 점수</span><span id="fact-score" class="fact-value">—</span><span id="fact-score-sub" class="fact-sub"></span></div>
+        <div class="fact"><span class="fact-label">최근 추세</span><span id="fact-trend" class="fact-value">—</span><span id="fact-trend-sub" class="fact-sub"></span></div>
+        <div class="fact"><span class="fact-label">분석한 데이터</span><span id="fact-period" class="fact-value">—</span><span id="fact-period-sub" class="fact-sub"></span></div>
+      </section>
+    </main>
+
+    <!-- ── 오른쪽: 채팅 ── -->
+    <aside class="chat-rail" aria-labelledby="chat-heading">
+      <div class="chat-head">
+        <h2 id="chat-heading">AI 비서에게 묻기</h2>
+        <p id="chat-current" class="chat-current">새 대화</p>
+      </div>
+      <div id="messages" class="messages" aria-live="polite">
+        <p id="chat-intro" class="chat-intro">2015년부터의 원/엔 환율을 바탕으로 답해요. 그래프에서 궁금한 구간이나 여행 계획을 물어보세요.</p>
+      </div>
+      <div id="suggestions" class="suggestions">
+        <button class="chip" type="button" disabled>지금 엔화 싼 편이야?</button>
+        <button class="chip" type="button" disabled>2024년 8월에 왜 급등했어?</button>
+        <button class="chip" type="button" disabled>3월에 도쿄 가는데 언제 환전할까?</button>
+      </div>
+      <form id="chat-form" class="composer">
+        <label for="chat-input" class="sr-only">질문</label>
+        <textarea id="chat-input" rows="3" maxlength="500" placeholder="그래프에서 궁금한 구간이나 여행 계획을 물어보세요" disabled></textarea>
+        <div class="composer-foot">
+          <span class="composer-hint">Enter로 보내기, Shift+Enter로 줄바꿈</span>
+          <button id="send-btn" class="btn btn--primary" type="submit" disabled>보내기</button>
+        </div>
+      </form>
+    </aside>
+
+    <!-- ── 왼쪽 아래: 대화 기록, 데이터 관리 ── -->
+    <div class="board board--lower">
+      <section class="history" id="history" aria-labelledby="history-heading">
+        <div class="section-head">
+          <h2 id="history-heading">대화 기록</h2>
+          <button id="new-chat" class="btn btn--ghost btn--small" type="button">새 대화</button>
+        </div>
+        <ul id="conv-list" class="conv-list"></ul>
+        <p id="conv-empty" class="empty" hidden>아직 저장된 대화가 없어요. 첫 질문을 보내면 여기에 저장돼요.</p>
+      </section>
+
+      <section class="data-panel" aria-labelledby="data-heading">
+        <div class="section-head">
+          <h2 id="data-heading">데이터 관리</h2>
+          <div class="section-actions">
+            <button id="filter-toggle" class="btn btn--text btn--small" type="button" aria-expanded="false" aria-controls="filter-form">기간 조회</button>
+            <button id="export-csv" class="btn btn--text btn--small" type="button">CSV 내보내기</button>
+            <button id="export-json" class="btn btn--text btn--small" type="button">JSON</button>
+          </div>
+        </div>
+
+        <form id="filter-form" class="filter-form" hidden>
+          <label class="field"><span>시작일</span><input id="filter-start" type="date"></label>
+          <label class="field"><span>종료일</span><input id="filter-end" type="date"></label>
+          <button class="btn btn--ghost btn--small" type="submit">조회</button>
+          <button id="filter-reset" class="btn btn--text btn--small" type="button">전체 보기</button>
+        </form>
+
+        <form id="add-form" class="add-form">
+          <label class="field"><span>날짜</span><input id="add-date" name="date" type="date" required></label>
+          <label class="field"><span>100엔당 원</span><input id="add-value" name="value" type="number" step="0.01" min="300.01" max="2999.99" placeholder="852.31" required></label>
+          <label class="field field--wide"><span>메모 (선택)</span><input id="add-memo" name="memo" type="text" maxlength="200" placeholder="예: 여행 경비 환전함"></label>
+          <button class="btn btn--primary btn--small" type="submit">추가</button>
+        </form>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">날짜</th>
+                <th scope="col" class="num">100엔당 원</th>
+                <th scope="col">메모</th>
+                <th scope="col"><span class="sr-only">관리</span></th>
+              </tr>
+            </thead>
+            <tbody id="data-rows"></tbody>
+          </table>
+        </div>
+        <div class="data-foot">
+          <p id="data-count" class="data-count"></p>
+          <button id="more-btn" class="btn btn--text btn--small" type="button" hidden>더 보기</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

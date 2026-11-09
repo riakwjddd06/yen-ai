@@ -77,3 +77,9 @@ def all_values() -> list[tuple[str, float]]:
     """요약 계산용: 전체 (날짜, 값)을 날짜순으로. 문서 수만큼 읽기가 발생하므로 캐시와 함께 쓴다."""
     docs = _col().select(["date", "value"]).order_by("date").stream()
     return [(d.get("date"), float(d.get("value"))) for d in docs]
+
+
+def all_records() -> list[dict]:
+    """내보내기용: 전체 (날짜, 값, 메모)를 날짜순으로."""
+    docs = _col().select(["date", "value", "memo"]).order_by("date").stream()
+    return [{"date": d.get("date"), "value": float(d.get("value")), "memo": d.to_dict().get("memo", "")} for d in docs]
