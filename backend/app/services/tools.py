@@ -197,7 +197,8 @@ def get_travel_advice(travel_month: int | None = None, budget_krw: int | None = 
     s = summary_service.get_summary()
     m, t = s["metrics"], s["travel"]
     dates, values, _ = _series()
-    one_year = values[bisect_left(dates, (date.fromisoformat(dates[-1]) - timedelta(days=365)).isoformat()):]
+    # 요약(analysis._since)과 같은 기준: 마지막 날짜 365일 전 "다음 날"부터
+    one_year = values[bisect_right(dates, (date.fromisoformat(dates[-1]) - timedelta(days=365)).isoformat()):]
     result = {
         "latest": m["latest"],
         "exchange_score": {"score": t["rate_score"], "label": t["rate_label"],
