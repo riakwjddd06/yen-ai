@@ -121,14 +121,14 @@
         </div>
 
         <form id="filter-form" class="filter-form" hidden>
-          <label class="field"><span>시작일</span><input id="filter-start" type="date"></label>
-          <label class="field"><span>종료일</span><input id="filter-end" type="date"></label>
+          <div class="field" role="group" aria-labelledby="filter-start-label"><span id="filter-start-label">시작일</span><div id="filter-start" class="date-select" data-label="시작일"></div></div>
+          <div class="field" role="group" aria-labelledby="filter-end-label"><span id="filter-end-label">종료일</span><div id="filter-end" class="date-select" data-label="종료일"></div></div>
           <button class="btn btn--ghost btn--small" type="submit">조회</button>
           <button id="filter-reset" class="btn btn--text btn--small" type="button">전체 보기</button>
         </form>
 
         <form id="add-form" class="add-form">
-          <label class="field"><span>날짜</span><input id="add-date" name="date" type="date" required></label>
+          <div class="field" role="group" aria-labelledby="add-date-label"><span id="add-date-label">날짜</span><div id="add-date" class="date-select" data-label="날짜"></div></div>
           <label class="field"><span>100엔당 원</span><input id="add-value" name="value" type="number" step="0.01" min="300.01" max="2999.99" placeholder="852.31" required></label>
           <label class="field field--wide"><span>메모 (선택)</span><input id="add-memo" name="memo" type="text" maxlength="200" placeholder="예: 여행 경비 환전함"></label>
           <button class="btn btn--primary btn--small" type="submit">추가</button>

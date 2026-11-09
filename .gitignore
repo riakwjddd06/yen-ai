@@ -13,4 +13,4 @@ frontend/config.js
 
 # OS 파일
 .DS_Store
-.vscode/
+.vscode/frontend/config.js

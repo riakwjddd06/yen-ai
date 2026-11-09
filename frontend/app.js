@@ -58,6 +58,216 @@
     return node;
   }
 
+  /* ── 날짜 입력: 연, 월, 일 칸 + 목록 ───────────────────────── */
+  // 칸을 누르면 아래에 목록이 뜨고, 그대로 숫자를 쳐도 된다.
+  // "20150801"을 이어서 치면 연→월→일로 저절로 넘어간다.
+  // (브라우저 기본 <select>는 맥에서 누르면 메뉴가 떠서 키보드 입력이 막히므로 직접 만든다)
+  const FIRST_YEAR = 2015;
+  const daysIn = (y, m) => new Date(y, m, 0).getDate();  // m은 1~12
+  const pad2 = (n) => String(n).padStart(2, "0");
+  let dateSelectCount = 0;
+
+  function dateSelect(root) {
+    const label = root.dataset.label;
+    const now = new Date();
+    const maxY = now.getFullYear(), maxM = now.getMonth() + 1, maxD = now.getDate();
+    const id = `ds${++dateSelectCount}`;
+    const list = el("div", { class: "ds-list", role: "listbox", id: `${id}-list`, "aria-label": `${label} 목록` });
+    list.hidden = true;
+
+    const makeSeg = (key, part, unit, len, cols) => {
+      const input = el("input", {
+        type: "text", inputmode: "numeric", autocomplete: "off", maxlength: String(len), placeholder: part,
+        role: "combobox", "aria-label": `${label} ${part}`, "aria-expanded": "false",
+        "aria-controls": list.id, "aria-autocomplete": "list",
+      });
+      const box = el("span", { class: `ds-box ds-box--${key}` }, [input, el("span", { class: "ds-unit", "aria-hidden": "true", text: unit })]);
+      box.addEventListener("mousedown", (e) => { if (e.target === box || e.target.classList.contains("ds-unit")) { e.preventDefault(); input.focus(); } });
+      return { key, input, box, len, cols };
+    };
+    const Y = makeSeg("y", "연도", "년", 4, 4);
+    const M = makeSeg("m", "월", "월", 2, 4);
+    const D = makeSeg("d", "일", "일", 2, 7);
+    const segs = [Y, M, D];
+    root.replaceChildren(...segs.map((s) => s.box), list);
+
+    let active = null;  // 목록이 열린 칸
+    let hl = -1;        // 목록에서 강조된 위치
+    let opts = [];
+    const num = (s) => Number(s.input.value) || 0;
+
+    function choices(s) {
+      const y = num(Y), m = num(M);
+      if (s === Y) {
+        const years = [];
+        for (let v = maxY; v >= FIRST_YEAR; v -= 1) years.push({ v, text: String(v), off: false });
+        return years;
+      }
+      if (s === M) return Array.from({ length: 12 }, (_, i) => ({ v: i + 1, text: `${i + 1}월`, off: y === maxY && i + 1 > maxM }));
+      const n = daysIn(y || 2024, m >= 1 && m <= 12 ? m : 1);
+      return Array.from({ length: n }, (_, i) => ({ v: i + 1, text: String(i + 1), off: y === maxY && m === maxM && i + 1 > maxD }));
+    }
+
+    function render() {
+      list.dataset.kind = active.key;
+      list.style.setProperty("--cols", active.cols);
+      list.replaceChildren(...opts.map((o, i) => {
+        const opt = el("div", { class: "ds-opt", role: "option", id: `${id}-o${i}`, text: o.text, "aria-selected": String(i === hl) });
+        if (o.off) opt.setAttribute("aria-disabled", "true");
+        opt.addEventListener("mousedown", (e) => e.preventDefault());  // 입력칸 포커스 유지
+        opt.addEventListener("click", () => { if (!o.off) choose(o.v); });
+        return opt;
+      }));
+      if (hl >= 0) active.input.setAttribute("aria-activedescendant", `${id}-o${hl}`);
+      else active.input.removeAttribute("aria-activedescendant");
+      // 해당 칸 바로 아래에 띄우고, 화면 오른쪽 밖으로 나가면 왼쪽으로 당긴다
+      list.style.left = `${active.box.offsetLeft}px`;
+      const over = list.getBoundingClientRect().right - (document.documentElement.clientWidth - 8);
+      if (over > 0) list.style.left = `${active.box.offsetLeft - over}px`;
+    }
+
+    function open(s) {
+      if (active && active !== s) active.input.setAttribute("aria-expanded", "false");
+      active = s;
+      opts = choices(s);
+      hl = opts.findIndex((o) => o.v === num(s));
+      list.hidden = false;
+      s.input.setAttribute("aria-expanded", "true");
+      render();
+    }
+
+    function close() {
+      if (!active) return;
+      list.hidden = true;
+      active.input.setAttribute("aria-expanded", "false");
+      active.input.removeAttribute("aria-activedescendant");
+      active = null;
+    }
+
+    function setVal(s, v) { s.input.value = v ? String(v) : ""; }
+
+    // 일이 그달 말일보다 크면 말일로 맞춘다 (2월 31일 → 2월 28일)
+    function fix() {
+      const y = num(Y), m = num(M), d = num(D);
+      if (d && m >= 1 && m <= 12) {
+        const n = daysIn(y || 2024, m);
+        if (d > n) setVal(D, n);
+      }
+      segs.forEach((s) => s.box.classList.remove("is-invalid"));
+    }
+
+    function next(s) {
+      fix();
+      const i = segs.indexOf(s);
+      if (i < 2) segs[i + 1].input.focus();
+      else close();
+    }
+
+    function choose(v) {
+      const s = active;
+      setVal(s, v);
+      next(s);
+    }
+
+    function fillAll(text) {
+      const m = text.trim().match(/^(\d{4})\D?(\d{1,2})\D?(\d{1,2})$/);
+      if (!m) return false;
+      setVal(Y, Number(m[1])); setVal(M, Number(m[2])); setVal(D, Number(m[3]));
+      fix();
+      D.input.focus();
+      close();
+      return true;
+    }
+
+    segs.forEach((s) => {
+      s.input.addEventListener("focus", () => { open(s); s.input.select(); });
+      s.input.addEventListener("click", () => { if (active !== s) open(s); });
+
+      s.input.addEventListener("input", () => {
+        const digits = s.input.value.replace(/\D/g, "").slice(0, s.len);
+        s.input.value = digits;
+        s.box.classList.remove("is-invalid");
+        if (active !== s) open(s);
+        opts = choices(s);
+        hl = digits ? opts.findIndex((o) => o.v === Number(digits)) : -1;
+        if (hl < 0 && digits && s === Y) hl = opts.findIndex((o) => String(o.v).startsWith(digits));
+        render();
+        // 연도 4자리, 월 2자리(또는 2~9), 일 2자리(또는 4~9)가 되면 다음 칸으로
+        const n = Number(digits);
+        if (digits.length >= s.len || (s !== Y && digits.length === 1 && n > (s === M ? 1 : 3))) next(s);
+      });
+
+      s.input.addEventListener("paste", (e) => {
+        if (fillAll(e.clipboardData.getData("text"))) e.preventDefault();  // "2015-08-01" 붙여넣기
+      });
+
+      s.input.addEventListener("keydown", (e) => {
+        if (e.isComposing) return;
+        const move = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: s.cols, ArrowUp: -s.cols }[e.key];
+        if (move !== undefined) {
+          if (active !== s) {
+            if (e.key === "ArrowDown") { e.preventDefault(); open(s); }
+            return;
+          }
+          e.preventDefault();
+          let i = hl < 0 ? 0 : Math.min(Math.max(hl + move, 0), opts.length - 1);
+          hl = i;
+          render();
+          return;
+        }
+        if (e.key === "Enter" && active === s && hl >= 0) {
+          e.preventDefault();  // 목록이 열려 있을 때 Enter는 고르기 (폼 제출 아님)
+          if (!opts[hl].off) choose(opts[hl].v);
+          return;
+        }
+        if (e.key === "Escape" && active) { e.preventDefault(); close(); return; }
+        if (e.key === "Backspace" && !s.input.value && s !== Y) { e.preventDefault(); segs[segs.indexOf(s) - 1].input.focus(); return; }
+        if (["-", ".", "/", " "].includes(e.key)) { e.preventDefault(); if (s.input.value) next(s); }
+      });
+    });
+
+    // 날짜 칸 바깥으로 포커스가 나가면 목록을 닫는다
+    root.addEventListener("focusout", (e) => {
+      if (!root.contains(e.relatedTarget)) { close(); fix(); }
+    });
+
+    // 각 칸이 올바른지: 비었거나 범위를 벗어나면 false
+    function valid(s) {
+      const v = num(s);
+      if (!s.input.value) return false;
+      if (s === Y) return v >= 1900 && v <= maxY;
+      if (s === M) return v >= 1 && v <= 12;
+      return v >= 1 && v <= daysIn(num(Y) || 2024, num(M) >= 1 && num(M) <= 12 ? num(M) : 1);
+    }
+
+    return {
+      first: Y.input,
+      // edge: "start"면 비어 있는 월/일을 1월 1일로, "end"면 12월 말일로 채운다
+      get(edge) {
+        const filled = segs.map((s) => Boolean(s.input.value));
+        if (!filled[0]) return filled[1] || filled[2] ? null : "";
+        if (!edge && (!filled[1] || !filled[2])) return null;
+        if (segs.some((s, i) => filled[i] && !valid(s))) return null;
+        const y = num(Y);
+        const mm = num(M) || (edge === "end" ? 12 : 1);
+        const dd = num(D) || (edge === "end" ? daysIn(y, mm) : 1);
+        return `${y}-${pad2(mm)}-${pad2(dd)}`;
+      },
+      set(iso) {
+        const [y, m, d] = iso ? iso.split("-").map(Number) : [0, 0, 0];
+        setVal(Y, y); setVal(M, m); setVal(D, d);
+        fix();
+      },
+      markInvalid() {
+        const bad = segs.filter((s) => !valid(s));
+        bad.forEach((s) => s.box.classList.add("is-invalid"));
+        (bad[0] || Y).input.focus();
+      },
+    };
+  }
+
+  const dates = {};
+
   /* ── 1. 서버 깨우기 (Render 무료 서버 대응) ───────── */
   async function wakeServer() {
     const status = $("server-status");
@@ -422,7 +632,17 @@
   async function addData(event) {
     event.preventDefault();
     const form = event.target;
-    const body = { date: form.date.value, value: Number(form.value.value), memo: form.memo.value };
+    const date = dates.add.get();
+    if (!date) {
+      dates.add.markInvalid();
+      toast("날짜를 확인해 주세요. 연도, 월, 일을 모두 넣어야 해요.", "error");
+      return;
+    }
+    if (date > todayLocal()) {
+      toast("오늘 이후 날짜는 추가할 수 없어요.", "error");
+      return;
+    }
+    const body = { date, value: Number(form.value.value), memo: form.memo.value };
     try {
       const created = await API.createData(body);
       toast(`${created.date} 데이터를 추가했어요.`);
@@ -477,16 +697,28 @@
       const form = $("filter-form");
       form.hidden = !form.hidden;
       $("filter-toggle").setAttribute("aria-expanded", String(!form.hidden));
-      if (!form.hidden) $("filter-start").focus();
+      if (!form.hidden) dates.start.first.focus();
     });
     $("filter-form").addEventListener("submit", (e) => {
       e.preventDefault();
-      state.filter = { start: $("filter-start").value, end: $("filter-end").value };
+      // 연도만 고르면 그해 전체, 연도와 월만 고르면 그달 전체를 조회한다
+      const start = dates.start.get("start");
+      const end = dates.end.get("end");
+      if (start === null || end === null) {
+        (start === null ? dates.start : dates.end).markInvalid();
+        toast("기간 날짜를 확인해 주세요. 연도부터 넣어야 하고, 13월 같은 없는 날짜는 쓸 수 없어요.", "error");
+        return;
+      }
+      if (start && end && start > end) {
+        toast("시작일이 종료일보다 늦어요. 날짜를 다시 골라 주세요.", "error");
+        return;
+      }
+      state.filter = { start, end };
       loadData({ reset: true });
     });
     $("filter-reset").addEventListener("click", () => {
-      $("filter-start").value = "";
-      $("filter-end").value = "";
+      dates.start.set("");
+      dates.end.set("");
       state.filter = { start: "", end: "" };
       loadData({ reset: true });
     });
@@ -497,8 +729,10 @@
 
   /* ── 시작 ───────────────────────── */
   async function init() {
-    $("add-date").value = todayLocal();
-    $("add-date").max = todayLocal();
+    dates.add = dateSelect($("add-date"));
+    dates.start = dateSelect($("filter-start"));
+    dates.end = dateSelect($("filter-end"));
+    dates.add.set(todayLocal());
     bindEvents();
     if (await wakeServer()) {
       loadSummary();
