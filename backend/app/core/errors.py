@@ -39,6 +39,15 @@ def register_error_handlers(app: FastAPI) -> None:
     async def too_many(_: Request, exc: RateLimitExceeded):
         return JSONResponse(status_code=429, content={"detail": str(exc)})
 
+    # Firestore 무료 한도(하루 읽기 5만, 쓰기 2만)를 넘었을 때. 아래 일반 DB 오류보다 먼저 잡힌다
+    @app.exception_handler(google_exceptions.ResourceExhausted)
+    async def quota_exceeded(_: Request, exc: google_exceptions.ResourceExhausted):
+        logger.warning("Firestore 무료 한도 초과: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "오늘 데이터베이스 무료 사용량을 다 썼어요. 한국 시간 오후 5시(여름에는 4시)에 초기화되니 그 뒤에 다시 시도해 주세요."},
+        )
+
     @app.exception_handler(google_exceptions.GoogleAPICallError)
     async def database_error(_: Request, exc: google_exceptions.GoogleAPICallError):
         logger.exception("Firestore 오류: %s", exc)

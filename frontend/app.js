@@ -676,8 +676,30 @@
     }
   }
 
+  /* ── 다크 모드 ───────────────────────── */
+  // 처음에는 시스템 설정을 따르고, 버튼으로 바꾸면 이 브라우저에 기억한다
+  const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+  const currentTheme = () => document.documentElement.dataset.theme || (systemDark.matches ? "dark" : "light");
+
+  function paintThemeButton() {
+    const dark = currentTheme() === "dark";
+    $("theme-toggle").setAttribute("aria-pressed", String(dark));
+    $("theme-label").textContent = dark ? "라이트 모드" : "다크 모드";
+    $("theme-toggle").setAttribute("aria-label", dark ? "밝은 화면으로 바꾸기" : "어두운 화면으로 바꾸기");
+  }
+
+  function toggleTheme() {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("theme", next); } catch (e) { /* 저장이 막힌 브라우저는 이번 방문에만 적용 */ }
+    paintThemeButton();
+  }
+
   /* ── 이벤트 연결 ───────────────────────── */
   function bindEvents() {
+    $("theme-toggle").addEventListener("click", toggleTheme);
+    systemDark.addEventListener("change", paintThemeButton);
+    paintThemeButton();
     $("chat-form").addEventListener("submit", (e) => { e.preventDefault(); sendMessage($("chat-input").value); });
     $("chat-input").addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {  // 한글 조합 중 Enter는 무시
