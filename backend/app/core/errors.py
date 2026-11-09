@@ -2,7 +2,7 @@
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from app.core.responses import UTF8JSONResponse as JSONResponse  # charset=utf-8 붙은 JSON 응답
 from google.api_core import exceptions as google_exceptions
 
 from app.core.rate_limit import RateLimitExceeded

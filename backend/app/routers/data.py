@@ -41,7 +41,7 @@ def export_data(format: Literal["csv", "json"] = Query("csv")):
     rows = summary_service.export_records()  # 캐시에서 만든다 (전체 읽기 없음)
     if format == "json":
         body = json.dumps(rows, ensure_ascii=False, indent=2)
-        return Response(body, media_type="application/json",
+        return Response(body, media_type="application/json; charset=utf-8",
                         headers={"Content-Disposition": 'attachment; filename="yen_rates.json"'})
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=["date", "value", "memo"])
