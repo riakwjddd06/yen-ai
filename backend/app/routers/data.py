@@ -31,7 +31,7 @@ def read_series(range: Literal["3m", "1y", "5y", "all"] = Query("1y", descriptio
 
 @router.get("/export", summary="데이터 내보내기 (CSV 또는 JSON 다운로드)")
 def export_data(format: Literal["csv", "json"] = Query("csv")):
-    rows = data_service.all_records()
+    rows = summary_service.export_records()  # 캐시에서 만든다 (전체 읽기 없음)
     if format == "json":
         body = json.dumps(rows, ensure_ascii=False, indent=2)
         return Response(body, media_type="application/json",
@@ -48,7 +48,7 @@ def export_data(format: Literal["csv", "json"] = Query("csv")):
 @router.post("", response_model=DataOut, status_code=201, summary="데이터 추가")
 def create_data(body: DataCreate):
     item = data_service.create(body)
-    summary_service.invalidate()
+    summary_service.apply_change(item["date"], value=item["value"], memo=item["memo"])
     return item
 
 
@@ -70,12 +70,12 @@ def list_data(
 @router.put("/{data_id}", response_model=DataOut, summary="데이터 수정 (value, memo)")
 def update_data(data_id: DateId, body: DataUpdate):
     item = data_service.update(data_id, body)
-    summary_service.invalidate()
+    summary_service.apply_change(item["date"], value=item["value"], memo=item["memo"])
     return item
 
 
 @router.delete("/{data_id}", status_code=204, summary="데이터 삭제")
 def delete_data(data_id: DateId):
     data_service.delete(data_id)
-    summary_service.invalidate()
+    summary_service.apply_change(data_id, deleted=True)
     return Response(status_code=204)

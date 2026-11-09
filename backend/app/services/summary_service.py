@@ -1,11 +1,16 @@
 """요약 계산과 캐시.
 
 Firestore 무료 한도(하루 읽기 5만 건)를 아끼기 위해 3단계로 캐시한다.
-1) 서버 메모리  2) Firestore meta/summary 문서(서버가 잠들었다 깨어나도 유지)  3) 둘 다 없으면 전체 계산
-데이터가 바뀌면(POST/PUT/DELETE) invalidate()로 1)과 2)를 지운다.
+1) 서버 메모리  2) Firestore meta 문서(서버가 잠들었다 깨어나도 유지)  3) 둘 다 없으면 전체 읽기 1번
+- meta/series : 전체 날짜·값·메모 (그래프, 요약 계산, 내보내기에 함께 쓴다)
+- meta/summary: AI 프롬프트에 넣는 요약
+데이터가 바뀌면(POST/PUT/DELETE) apply_change()가 바뀐 1건만 캐시에 반영한다.
+(전체 2,918건을 다시 읽지 않으므로 추가·삭제 1번에 읽기는 0~1건)
 """
 import json
+import logging
 import threading
+from bisect import bisect_left
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -16,8 +21,12 @@ from app.services import analysis, data_service
 CALENDAR_PATH = Path(__file__).resolve().parents[2] / "data" / "travel_calendar.json"
 TOP_PERIODS = 5  # 프롬프트 길이를 위해 변동폭 상위 5개만
 SUMMARY_VERSION = 2  # 요약 모양이 바뀌면 올린다. 저장된 캐시의 버전이 다르면 다시 계산
+SERIES_VERSION = 2   # meta/series 모양 버전 (2: 메모 포함)
 
+logger = logging.getLogger("yen-ai")
 _cache: dict | None = None
+_series_cache: dict | None = None
+_pe_cache: tuple[list[dict], list[dict]] | None = None  # 급변동 구간·이유 (seed 때만 바뀜)
 _lock = threading.Lock()
 
 
@@ -30,10 +39,14 @@ def _series_ref():
 
 
 def _periods_and_events() -> tuple[list[dict], list[dict]]:
-    db = get_db()
-    periods = [d.to_dict() for d in db.collection("volatile_periods").stream()]
-    events = [d.to_dict() for d in db.collection("events").stream()]
-    return periods, events
+    """급변동 구간과 이유. 서버가 켜진 뒤 처음 한 번만 읽는다 (약 50건)."""
+    global _pe_cache
+    if _pe_cache is None:
+        db = get_db()
+        periods = [d.to_dict() for d in db.collection("volatile_periods").stream()]
+        events = [d.to_dict() for d in db.collection("events").stream()]
+        _pe_cache = (periods, events)
+    return _pe_cache
 
 
 def top_periods_with_reasons(periods: list[dict], events: list[dict]) -> list[dict]:
@@ -72,6 +85,15 @@ def compute_summary(rows: list[tuple[str, float]], periods: list[dict], events: 
     }
 
 
+def _compute_and_save(full: dict) -> dict:
+    rows = list(zip(full["dates"], full["values"]))
+    calendar = json.loads(CALENDAR_PATH.read_text(encoding="utf-8"))["months"]
+    periods, events = _periods_and_events()
+    summary = compute_summary(rows, periods, events, calendar)
+    _meta_ref().set(summary)
+    return summary
+
+
 def get_summary() -> dict:
     global _cache
     with _lock:
@@ -83,33 +105,33 @@ def get_summary() -> dict:
             _cache = saved.to_dict()
             return _cache
 
-        rows = data_service.all_values()
-        if not rows:
+        full = _all_series()
+        if not full["dates"]:
             raise NotFoundError("data 컬렉션이 비어 있습니다. seed_firestore.py로 데이터를 먼저 적재하세요.")
-        calendar = json.loads(CALENDAR_PATH.read_text(encoding="utf-8"))["months"]
-        periods, events = _periods_and_events()
-        _cache = compute_summary(rows, periods, events, calendar)
-        _meta_ref().set(_cache)
+        _cache = _compute_and_save(full)
         return _cache
 
 
 RANGE_DAYS = {"3m": 92, "1y": 365, "5y": 1826, "all": None}
 MAX_POINTS = 400  # 그래프 점이 너무 많으면 브라우저가 느려지므로 줄인다
 
-_series_cache: dict | None = None
-
-
 def _all_series() -> dict:
-    """전체 (날짜, 값) 배열. 메모리 → meta/series 문서(읽기 1건) → 전체 읽기 순서로 찾는다."""
+    """전체 날짜·값·메모. 메모리 → meta/series 문서(읽기 1건) → 전체 읽기(문서 수만큼) 순서로 찾는다.
+    _lock을 잡은 상태에서 부른다."""
     global _series_cache
     if _series_cache:
         return _series_cache
     saved = _series_ref().get()
-    if saved.exists:
+    if saved.exists and saved.to_dict().get("v") == SERIES_VERSION:
         _series_cache = saved.to_dict()
         return _series_cache
-    rows = data_service.all_values()
-    _series_cache = {"dates": [d for d, _ in rows], "values": [v for _, v in rows]}
+    records = data_service.all_records()
+    _series_cache = {
+        "v": SERIES_VERSION,
+        "dates": [r["date"] for r in records],
+        "values": [r["value"] for r in records],
+        "memos": {r["date"]: r["memo"] for r in records if r["memo"]},  # 메모가 있는 날만
+    }
     _series_ref().set(_series_cache)  # 2,918건이어도 문서 하나(약 90KB)에 들어간다
     return _series_cache
 
@@ -152,10 +174,73 @@ def get_series(range_key: str) -> dict:
     }
 
 
-def invalidate() -> None:
+def export_records() -> list[dict]:
+    """내보내기용 전체 기록. 캐시를 쓰므로 보통 읽기 0건."""
+    with _lock:
+        full = _all_series()
+        memos = full.get("memos", {})
+        return [{"date": d, "value": v, "memo": memos.get(d, "")} for d, v in zip(full["dates"], full["values"])]
+
+
+def apply_change(day: str, *, value: float | None = None, memo: str | None = None, deleted: bool = False) -> None:
+    """데이터 1건이 바뀐 뒤, 전체를 다시 읽지 않고 캐시만 고친다.
+    환율 값이 바뀐 경우에만 요약을 다시 계산한다 (메모만 바뀌면 요약은 그대로)."""
     global _cache, _series_cache
+    with _lock:
+        try:
+            full = _all_series()
+            dates, values = list(full["dates"]), list(full["values"])
+            memos = dict(full.get("memos", {}))
+            i = bisect_left(dates, day)
+            exists = i < len(dates) and dates[i] == day
+            value_changed = False
+
+            if deleted:
+                if exists:
+                    del dates[i], values[i]
+                    value_changed = True
+                memos.pop(day, None)
+            else:
+                if value is not None:
+                    if exists:
+                        value_changed = values[i] != value
+                        values[i] = value
+                    else:
+                        dates.insert(i, day)
+                        values.insert(i, value)
+                        value_changed = True
+                if memo is not None:
+                    if memo:
+                        memos[day] = memo
+                    else:
+                        memos.pop(day, None)
+
+            _series_cache = {"v": SERIES_VERSION, "dates": dates, "values": values, "memos": memos}
+            _series_ref().set(_series_cache)
+            if value_changed:
+                if dates:
+                    _cache = _compute_and_save(_series_cache)
+                else:
+                    _cache = None
+                    _meta_ref().delete()
+        except Exception:
+            # 캐시 고치기에 실패하면 예전처럼 지워 두고, 다음 요청 때 다시 계산한다
+            logger.exception("캐시 갱신 실패, 캐시를 지웁니다")
+            _cache = None
+            _series_cache = None
+            try:
+                _meta_ref().delete()
+                _series_ref().delete()
+            except Exception:
+                logger.exception("meta 캐시 삭제 실패")
+
+
+def invalidate() -> None:
+    """캐시를 모두 지운다. (seed 등으로 데이터가 크게 바뀌었을 때)"""
+    global _cache, _series_cache, _pe_cache
     with _lock:
         _cache = None
         _series_cache = None
+        _pe_cache = None
         _meta_ref().delete()
         _series_ref().delete()
