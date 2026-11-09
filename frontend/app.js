@@ -591,7 +591,7 @@
       const conv = await API.getConversation(id);
       setCurrent(conv.id, conv.title);
       clearMessages();
-      conv.messages.forEach((m) => addMessage(m.role, m.content));
+      conv.messages.forEach((m) => addMessage(m.role, m.content, m.tool_calls));
       loadConversations();
       if (window.matchMedia("(max-width: 1100px)").matches) $("messages").scrollIntoView({ behavior: "smooth" });
     } catch (err) {
@@ -631,8 +631,15 @@
     $("chat-intro").hidden = true;
   }
 
-  function addMessage(role, text) {
-    const node = el("div", { class: `msg msg--${role}`, text });
+  // toolCalls: AI가 답을 만들며 부른 도구 기록 [{name, label, arguments}]
+  function addMessage(role, text, toolCalls) {
+    const node = el("div", { class: `msg msg--${role}` }, [el("span", { class: "msg-text", text })]);
+    if (toolCalls && toolCalls.length) {
+      node.append(el("div", { class: "msg-tools" }, [
+        el("span", { text: "사용한 도구" }),
+        ...toolCalls.map((t) => el("span", { class: "tool-chip", title: `${t.name} ${JSON.stringify(t.arguments || {})}`, text: t.label || t.name })),
+      ]));
+    }
     $("messages").append(node);
     $("messages").scrollTop = $("messages").scrollHeight;
     return node;
@@ -657,7 +664,7 @@
     try {
       const res = await API.chat({ message, ...(state.conversationId ? { conversation_id: state.conversationId } : {}) });
       loading.remove();
-      addMessage("assistant", res.reply);
+      addMessage("assistant", res.reply, res.tool_calls);
       setCurrent(res.conversation_id, res.title);
       loadConversations();
     } catch (err) {

@@ -539,6 +539,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .msg { max-width: 92%; padding: 12px 14px; border-radius: var(--radius-m); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
 .msg--user { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 3px; }
 .msg--assistant { align-self: flex-start; background: var(--bg); border-bottom-left-radius: 3px; }
+.msg-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: normal;
+}
+.tool-chip { padding: 2px 8px; border-radius: 999px; background: var(--mist); color: var(--ink); }
 .msg--error { align-self: flex-start; background: var(--dear-mist); color: var(--error-ink); }
 .msg--loading { align-self: flex-start; background: var(--bg); color: var(--muted); }
 

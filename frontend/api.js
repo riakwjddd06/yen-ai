@@ -101,6 +101,6 @@ const API = (() => {
     listConversations: () => request("/api/conversations?limit=50"),
     getConversation: (id) => request(`/api/conversations/${encodeURIComponent(id)}`),
     deleteConversation: (id) => request(`/api/conversations/${encodeURIComponent(id)}`, { method: "DELETE" }),
-    chat: (body) => request("/api/chat", { method: "POST", body, timeout: 90000 }),
+    chat: (body) => request("/api/chat", { method: "POST", body, timeout: 150000 }),  // 도구를 여러 번 부르면 오래 걸릴 수 있다
   };
 })();
