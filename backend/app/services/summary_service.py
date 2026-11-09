@@ -15,6 +15,7 @@ from app.services import analysis, data_service
 
 CALENDAR_PATH = Path(__file__).resolve().parents[2] / "data" / "travel_calendar.json"
 TOP_PERIODS = 5  # 프롬프트 길이를 위해 변동폭 상위 5개만
+SUMMARY_VERSION = 2  # 요약 모양이 바뀌면 올린다. 저장된 캐시의 버전이 다르면 다시 계산
 
 _cache: dict | None = None
 _lock = threading.Lock()
@@ -24,11 +25,15 @@ def _meta_ref():
     return get_db().collection("meta").document("summary")
 
 
-def _periods_with_reasons() -> list[dict]:
+def _periods_and_events() -> tuple[list[dict], list[dict]]:
     db = get_db()
     periods = [d.to_dict() for d in db.collection("volatile_periods").stream()]
     events = [d.to_dict() for d in db.collection("events").stream()]
-    periods.sort(key=lambda p: abs(p["change_pct"]), reverse=True)
+    return periods, events
+
+
+def top_periods_with_reasons(periods: list[dict], events: list[dict]) -> list[dict]:
+    periods = sorted(periods, key=lambda p: abs(p["change_pct"]), reverse=True)
     result = []
     for p in periods[:TOP_PERIODS]:
         reasons = [e["title"] for e in events if e["start_date"] <= p["end"] and e["end_date"] >= p["start"]]
@@ -41,16 +46,23 @@ def _periods_with_reasons() -> list[dict]:
     return result
 
 
-def compute_summary(rows: list[tuple[str, float]], periods: list[dict], calendar: list[dict]) -> dict:
+def brief_events(events: list[dict]) -> list[dict]:
+    keys = ("start_date", "end_date", "title", "direction", "category")
+    return sorted(({k: e[k] for k in keys} for e in events), key=lambda e: e["start_date"])
+
+
+def compute_summary(rows: list[tuple[str, float]], periods: list[dict], events: list[dict], calendar: list[dict]) -> dict:
     pos = analysis.position(rows)
     return {
+        "version": SUMMARY_VERSION,
         "period": f"{rows[0][0]} ~ {rows[-1][0]}",
         "count": len(rows),
         "unit": "원/100엔",
         "metrics": analysis.basic_metrics(rows),
         "trend": analysis.trend(rows),
         "position": pos,
-        "volatile_periods": periods,
+        "volatile_periods": top_periods_with_reasons(periods, events),
+        "events": brief_events(events),
         "travel": analysis.travel(pos["percentile_1y"], calendar),
         "computed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
@@ -63,7 +75,7 @@ def get_summary() -> dict:
             return _cache
 
         saved = _meta_ref().get()
-        if saved.exists:
+        if saved.exists and saved.to_dict().get("version") == SUMMARY_VERSION:
             _cache = saved.to_dict()
             return _cache
 
@@ -71,7 +83,8 @@ def get_summary() -> dict:
         if not rows:
             raise NotFoundError("data 컬렉션이 비어 있습니다. seed_firestore.py로 데이터를 먼저 적재하세요.")
         calendar = json.loads(CALENDAR_PATH.read_text(encoding="utf-8"))["months"]
-        _cache = compute_summary(rows, _periods_with_reasons(), calendar)
+        periods, events = _periods_and_events()
+        _cache = compute_summary(rows, periods, events, calendar)
         _meta_ref().set(_cache)
         return _cache
 

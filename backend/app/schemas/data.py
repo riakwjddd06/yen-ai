@@ -87,6 +87,14 @@ class VolatilePeriodOut(BaseModel):
     reasons: list[str] = []
 
 
+class EventBrief(BaseModel):
+    start_date: str
+    end_date: str
+    title: str
+    direction: str = Field(..., description="원/엔 기준 상승(엔화 강세) / 하락(엔화 약세) / 혼조")
+    category: str
+
+
 class MonthlyTravel(BaseModel):
     month: int
     crowd: int
@@ -102,6 +110,7 @@ class Travel(BaseModel):
 
 
 class SummaryOut(BaseModel):
+    version: int = 1
     period: str
     count: int
     unit: str = "원/100엔"
@@ -109,5 +118,6 @@ class SummaryOut(BaseModel):
     trend: str
     position: Position
     volatile_periods: list[VolatilePeriodOut]
+    events: list[EventBrief] = Field([], description="기사로 확인한 급변동 이유 전체 (날짜순)")
     travel: Travel
     computed_at: str

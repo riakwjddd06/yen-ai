@@ -19,6 +19,9 @@ class Settings:
         self.openai_api_key = _required("OPENAI_API_KEY")
         self.openai_base_url = _required("OPENAI_BASE_URL")
         self.openai_model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+        self.max_completion_tokens = int(os.getenv("OPENAI_MAX_COMPLETION_TOKENS", "1500"))
+        self.reasoning_effort = os.getenv("OPENAI_REASONING_EFFORT")  # 선택: low 등. 비우면 보내지 않음
+        self.chat_rate_limit = int(os.getenv("CHAT_RATE_LIMIT_PER_MIN", "10"))  # IP당 분당 채팅 횟수
 
         # Firebase: 로컬은 파일 경로, 배포는 JSON 문자열 (4단계에서 사용)
         self.firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
